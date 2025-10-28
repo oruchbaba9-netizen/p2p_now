@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Settings</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        header {
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            margin-right: 15px;
+            cursor: pointer;
+        }
+        
+        header h1 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+        
+        .profile-section {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .profile-pic {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .profile-pic img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .profile-name {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .profile-status {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .settings-section {
+            padding: 20px 0;
+        }
+        
+        .section-title {
+            padding: 10px 20px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .settings-list {
+            list-style: none;
+        }
+        
+        .settings-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .settings-item:hover {
+            background: #f9f9f9;
+        }
+        
+        .item-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            color: #0088cc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .item-content {
+            flex: 1;
+        }
+        
+        .item-title {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+        
+        .item-subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .item-action {
+            color: #999;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #0088cc;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-weight: 500;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #0088cc;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .privacy-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .privacy-option:last-child {
+            border-bottom: none;
+        }
+        
+        .privacy-option input {
+            margin-right: 10px;
+        }
+        
+        .privacy-option label {
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .theme-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .theme-option:last-child {
+            border-bottom: none;
+        }
+        
+        .theme-option input {
+            margin-right: 10px;
+        }
+        
+        .theme-option label {
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .theme-preview {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #eee;
+        }
+        
+        .light-theme {
+            background: #ffffff;
+        }
+        
+        .dark-theme {
+            background: #1e1e1e;
+        }
+        
+        .system-theme {
+            background: linear-gradient(45deg, #ffffff 50%, #1e1e1e 50%);
+        }
+        
+        .coffee-theme {
+            background: #6f4e37;
+        }
+        
+        .wallpaper-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .wallpaper-option {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .wallpaper-option.selected {
+            border-color: #0088cc;
+        }
+        
+        .wallpaper-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        
+        .color-option.selected {
+            border-color: #333;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .file-input-button {
+            display: block;
+            padding: 10px;
+            background: #f0f0f0;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .profile-pic-upload {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top nav -->
+    <div class="top-nav-bar" style="background:#fff;padding:10px;border-bottom:1px solid #eee;">
+        <nav style="display:flex;gap:12px;align-items:center;max-width:1000px;margin:0 auto;">
+            <a href="tp.html">Dashboard</a>
+            <a href="profile.html">Profile</a>
+            <a href="setting.html">Settings</a>
+            <a href="oldindex.html" id="logoutLinkTop">Logout</a>
+        </nav>
+    </div>
+    <div class="container">
+        <header>
+            <button class="back-btn" id="backBtn">←</button>
+            <h1>Settings</h1>
+        </header>
+        
+        <div class="profile-section">
+            <div class="profile-pic" id="profilePic">
+                JD
+                <div class="profile-pic-upload" id="profilePicUpload">+</div>
+            </div>
+            <div class="profile-name" id="profileName">John Doe</div>
+            <div class="profile-status" id="profileStatus">Online</div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Account</div>
+            <ul class="settings-list">
+                <li class="settings-item" data-modal="profile-modal">
+                    <div class="item-icon">👤</div>
+                    <div class="item-content">
+                        <div class="item-title">Profile</div>
+                        <div class="item-subtitle">Update your profile information</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="privacy-modal">
+                    <div class="item-icon">🔒</div>
+                    <div class="item-content">
+                        <div class="item-title">Privacy</div>
+                        <div class="item-subtitle">Manage your privacy settings</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="security-modal">
+                    <div class="item-icon">🛡️</div>
+                    <div class="item-content">
+                        <div class="item-title">Security</div>
+                        <div class="item-subtitle">Change password and security options</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Chats</div>
+            <ul class="settings-list">
+                <li class="settings-item" data-modal="wallpaper-modal">
+                    <div class="item-icon">💬</div>
+                    <div class="item-content">
+                        <div class="item-title">Chat Wallpaper</div>
+                        <div class="item-subtitle">Change your chat background</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="theme-modal">
+                    <div class="item-icon">📱</div>
+                    <div class="item-content">
+                        <div class="item-title">Theme</div>
+                        <div class="item-subtitle">Light / Dark / System / Coffee</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Notifications</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">🔔</div>
+                    <div class="item-content">
+                        <div class="item-title">Message Notifications</div>
+                        <div class="item-subtitle">Enable or disable message alerts</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="messageNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">📢</div>
+                    <div class="item-content">
+                        <div class="item-title">Group Notifications</div>
+                        <div class="item-subtitle">Control notifications from groups</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="groupNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">🔕</div>
+                    <div class="item-content">
+                        <div class="item-title">Mute Conversations</div>
+                        <div class="item-subtitle">Manage muted chats</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Storage and Data</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">📊</div>
+                    <div class="item-content">
+                        <div class="item-title">Storage Usage</div>
+                        <div class="item-subtitle">1.2 GB of 5 GB used</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">📥</div>
+                    <div class="item-content">
+                        <div class="item-title">Media Auto-Download</div>
+                        <div class="item-subtitle">Configure auto-download settings</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Help</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">❓</div>
+                    <div class="item-content">
+                        <div class="item-title">Help Center</div>
+                        <div class="item-subtitle">Get help with IMO</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">ℹ️</div>
+                    <div class="item-content">
+                        <div class="item-title">About</div>
+                        <div class="item-subtitle">IMO Version 2.0.123</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Profile Modal -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Edit Profile</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" class="form-control" value="John Doe">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <input type="text" id="status" class="form-control" value="Online">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" value="john.doe@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="file-input-wrapper">
+                        <div class="file-input-button">Choose Image</div>
+                        <input type="file" id="profileImage" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveProfile">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Privacy Modal -->
+    <div class="modal" id="privacy-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Privacy Settings</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenEveryone" name="lastSeen" value="everyone" checked>
+                    <label for="lastSeenEveryone">
+                        <div class="item-title">Last Seen - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your last seen time</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenMyContacts" name="lastSeen" value="myContacts">
+                    <label for="lastSeenMyContacts">
+                        <div class="item-title">Last Seen - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your last seen time</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenNobody" name="lastSeen" value="nobody">
+                    <label for="lastSeenNobody">
+                        <div class="item-title">Last Seen - Nobody</div>
+                        <div class="item-subtitle">No one can see your last seen time</div>
+                    </label>
+                </div>
+                
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoEveryone" name="profilePhoto" value="everyone" checked>
+                    <label for="profilePhotoEveryone">
+                        <div class="item-title">Profile Photo - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your profile photo</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoMyContacts" name="profilePhoto" value="myContacts">
+                    <label for="profilePhotoMyContacts">
+                        <div class="item-title">Profile Photo - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your profile photo</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoNobody" name="profilePhoto" value="nobody">
+                    <label for="profilePhotoNobody">
+                        <div class="item-title">Profile Photo - Nobody</div>
+                        <div class="item-subtitle">No one can see your profile photo</div>
+                    </label>
+                </div>
+                
+                <div class="privacy-option">
+                    <input type="radio" id="statusEveryone" name="status" value="everyone" checked>
+                    <label for="statusEveryone">
+                        <div class="item-title">Status - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your status</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="statusMyContacts" name="status" value="myContacts">
+                    <label for="statusMyContacts">
+                        <div class="item-title">Status - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your status</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="statusNobody" name="status" value="nobody">
+                    <label for="statusNobody">
+                        <div class="item-title">Status - Nobody</div>
+                        <div class="item-subtitle">No one can see your status</div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="savePrivacy">Save Privacy Settings</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Modal -->
+    <div class="modal" id="security-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Security</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm New Password</label>
+                    <input type="password" id="confirm-password" class="form-control">
+                </div>
+                <div class="settings-item">
+                    <div class="item-content">
+                        <div class="item-title">Two-Step Verification</div>
+                        <div class="item-subtitle">Add extra security to your account</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="twoStepVerification">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="updatePassword">Update Password</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wallpaper Modal -->
+    <div class="modal" id="wallpaper-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Chat Wallpaper</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Wallpaper</label>
+                    <div class="wallpaper-options">
+                        <div class="wallpaper-option selected" data-wallpaper="default">
+                            <div style="width:100%;height:100%;background:linear-gradient(135deg, #0088cc, #00aaff);"></div>
+                        </div>
+                        <div class="wallpaper-option" data-wallpaper="pattern1">
+                            <div style="width:100%;height:100%;background:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDgwIDgwIj48cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iODAiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMCA0MEg0MFY4MEgweiIgZmlsbD0iI2YwZjBmMCIvPjxwYXRoIGQ9Ik00MCAwSDgwVjQwSDQweiIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==')"></div>
+                        </div>
+                        <div class="wallpaper-option" data-wallpaper="pattern2">
+                            <div style="width:100%;height:100%;background:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDgwIDgwIj48cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iODAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSIyMCIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==')"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Or choose a color</label>
+                    <div class="wallpaper-options">
+                        <div class="color-option selected" style="background-color:#ffffff;" data-color="#ffffff"></div>
+                        <div class="color-option" style="background-color:#f0f0f0;" data-color="#f0f0f0"></div>
+                        <div class="color-option" style="background-color:#e6f7ff;" data-color="#e6f7ff"></div>
+                        <div class="color-option" style="background-color:#fff2e8;" data-color="#fff2e8"></div>
+                        <div class="color-option" style="background-color:#f6ffed;" data-color="#f6ffed"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Or upload your own image</label>
+                    <div class="file-input-wrapper">
+                        <div class="file-input-button">Choose Image</div>
+                        <input type="file" id="wallpaperImage" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveWallpaper">Apply Wallpaper</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Theme Modal -->
+    <div class="modal" id="theme-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Theme Settings</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="theme-option">
+                    <input type="radio" id="lightTheme" name="theme" value="light" checked>
+                    <label for="lightTheme">
+                        <div class="theme-preview light-theme"></div>
+                        <div>
+                            <div class="item-title">Light</div>
+                            <div class="item-subtitle">Light background with dark text</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="darkTheme" name="theme" value="dark">
+                    <label for="darkTheme">
+                        <div class="theme-preview dark-theme"></div>
+                        <div>
+                            <div class="item-title">Dark</div>
+                            <div class="item-subtitle">Dark background with light text</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="systemTheme" name="theme" value="system">
+                    <label for="systemTheme">
+                        <div class="theme-preview system-theme"></div>
+                        <div>
+                            <div class="item-title">System</div>
+                            <div class="item-subtitle">Follow your device's theme setting</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="coffeeTheme" name="theme" value="coffee">
+                    <label for="coffeeTheme">
+                        <div class="theme-preview coffee-theme"></div>
+                        <div>
+                            <div class="item-title">Coffee</div>
+                            <div class="item-subtitle">Warm brown tones for a cozy feel</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveTheme">Apply Theme</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Back button functionality
+        document.getElementById('backBtn').addEventListener('click', function() {
+            alert('Navigating back...');
+            // In a real app, this would navigate back in history or to previous page
+        });
+        
+        // Modal functionality
+        const settingsItems = document.querySelectorAll('.settings-item');
+        const modals = document.querySelectorAll('.modal');
+        const closeButtons = document.querySelectorAll('.close-modal');
+        
+        settingsItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const modalId = this.getAttribute('data-modal');
+                if (modalId) {
+                    document.getElementById(modalId).style.display = 'flex';
+                    // Load saved settings when opening modals
+                    loadSavedSettings(modalId);
+                }
+            });
+        });
+        
+        closeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.modal').style.display = 'none';
+            });
+        });
+        
+        // Close modal when clicking outside
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.style.display = 'none';
+                }
+            });
+        });
+        
+        // Toggle switch functionality
+        const toggleSwitches = document.querySelectorAll('.toggle-switch input');
+        toggleSwitches.forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                saveSetting(this.id, this.checked);
+                if (this.checked) {
+                    console.log('Toggle enabled');
+                } else {
+                    console.log('Toggle disabled');
+                }
+            });
+        });
+        
+        // Profile picture upload
+        document.getElementById('profileImage').addEventListener('change', function(e) {
+            if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const profilePic = document.getElementById('profilePic');
+                    profilePic.innerHTML = `<img src="${event.target.result}" alt="Profile Picture">`;
+                    profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+                    
+                    // Save to localStorage
+                    localStorage.setItem('profilePicture', event.target.result);
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+        
+        // Profile picture upload button
+        document.getElementById('profilePicUpload').addEventListener('click', function() {
+            document.getElementById('profileImage').click();
+        });
+        
+        // Save profile information
+        document.getElementById('saveProfile').addEventListener('click', function() {
+            const name = document.getElementById('name').value;
+            const status = document.getElementById('status').value;
+            const email = document.getElementById('email').value;
+            
+            // Update the UI
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('profileStatus').textContent = status;
+            
+            // Save to localStorage
+            localStorage.setItem('profileName', name);
+            localStorage.setItem('profileStatus', status);
+            localStorage.setItem('profileEmail', email);
+            
+            // Close modal
+            document.getElementById('profile-modal').style.display = 'none';
+            
+            alert('Profile information saved successfully!');
+        });
+        
+        // Save privacy settings
+        document.getElementById('savePrivacy').addEventListener('click', function() {
+            const lastSeen = document.querySelector('input[name="lastSeen"]:checked').value;
+            const profilePhoto = document.querySelector('input[name="profilePhoto"]:checked').value;
+            const status = document.querySelector('input[name="status"]:checked').value;
+            
+            // Save to localStorage
+            localStorage.setItem('privacyLastSeen', lastSeen);
+            localStorage.setItem('privacyProfilePhoto', profilePhoto);
+            localStorage.setItem('privacyStatus', status);
+            
+            // Close modal
+            document.getElementById('privacy-modal').style.display = 'none';
+            
+            alert('Privacy settings saved successfully!');
+        });
+        
+        // Wallpaper selection
+        const wallpaperOptions = document.querySelectorAll('.wallpaper-option');
+        wallpaperOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                wallpaperOptions.forEach(opt => opt.classList.remove('selected'));
+                // Add selected class to clicked option
+                this.classList.add('selected');
+            });
+        });
+        
+        // Color selection
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                colorOptions.forEach(opt => opt.classList.remove('selected'));
+                // Add selected class to clicked option
+                this.classList.add('selected');
+            });
+        });
+        
+        // Save wallpaper
+        document.getElementById('saveWallpaper').addEventListener('click', function() {
+            const selectedWallpaper = document.querySelector('.wallpaper-option.selected').getAttribute('data-wallpaper');
+            const selectedColor = document.querySelector('.color-option.selected').getAttribute('data-color');
+            
+            // Save to localStorage
+            localStorage.setItem('chatWallpaper', selectedWallpaper);
+            localStorage.setItem('chatWallpaperColor', selectedColor);
+            
+            // Close modal
+            document.getElementById('wallpaper-modal').style.display = 'none';
+            
+            alert('Wallpaper applied successfully!');
+        });
+        
+        // Save theme
+        document.getElementById('saveTheme').addEventListener('click', function() {
+            const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+            
+            // Save to localStorage
+            localStorage.setItem('appTheme', selectedTheme);
+            
+            // Apply theme
+            applyTheme(selectedTheme);
+            
+            // Close modal
+            document.getElementById('theme-modal').style.display = 'none';
+            
+            alert('Theme applied successfully!');
+        });
+        
+        // Load saved settings when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedSettings();
+        });
+        
+        // Function to load saved settings
+        function loadSavedSettings(modalId = null) {
+            // Load profile information
+            if (localStorage.getItem('profileName')) {
+                document.getElementById('profileName').textContent = localStorage.getItem('profileName');
+                document.getElementById('name').value = localStorage.getItem('profileName');
+            }
+            
+            if (localStorage.getItem('profileStatus')) {
+                document.getElementById('profileStatus').textContent = localStorage.getItem('profileStatus');
+                document.getElementById('status').value = localStorage.getItem('profileStatus');
+            }
+            
+            if (localStorage.getItem('profileEmail')) {
+                document.getElementById('email').value = localStorage.getItem('profileEmail');
+            }
+            
+            if (localStorage.getItem('profilePicture')) {
+                const profilePic = document.getElementById('profilePic');
+                profilePic.innerHTML = `<img src="${localStorage.getItem('profilePicture')}" alt="Profile Picture">`;
+                profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+                // Reattach event listener
+                document.getElementById('profilePicUpload').addEventListener('click', function() {
+                    document.getElementById('profileImage').click();
+                });
+            }
+            
+            // Load privacy settings
+            if (localStorage.getItem('privacyLastSeen')) {
+                document.getElementById(`lastSeen${capitalizeFirst(localStorage.getItem('privacyLastSeen'))}`).checked = true;
+            }
+            
+            if (localStorage.getItem('privacyProfilePhoto')) {
+                document.getElementById(`profilePhoto${capitalizeFirst(localStorage.getItem('privacyProfilePhoto'))}`).checked = true;
+            }
+            
+            if (localStorage.getItem('privacyStatus')) {
+                document.getElementById(`status${capitalizeFirst(localStorage.getItem('privacyStatus'))}`).checked = true;
+            }
+            
+            // Load theme
+            if (localStorage.getItem('appTheme')) {
+                document.getElementById(`${localStorage.getItem('appTheme')}Theme`).checked = true;
+                applyTheme(localStorage.getItem('appTheme'));
+            }
+            
+            // Load notification settings
+            if (localStorage.getItem('messageNotifications') !== null) {
+                document.getElementById('messageNotifications').checked = localStorage.getItem('messageNotifications') === 'true';
+            }
+            
+            if (localStorage.getItem('groupNotifications') !== null) {
+                document.getElementById('groupNotifications').checked = localStorage.getItem('groupNotifications') === 'true';
+            }
+            
+            if (localStorage.getItem('twoStepVerification') !== null) {
+                document.getElementById('twoStepVerification').checked = localStorage.getItem('twoStepVerification') === 'true';
+            }
+        }
+        
+        // Function to save settings
+        function saveSetting(key, value) {
+            localStorage.setItem(key, value);
+        }
+        
+        // Function to apply theme
+        function applyTheme(theme) {
+            const body = document.body;
+            const container = document.querySelector('.container');
+            
+            // Remove existing theme classes
+            body.classList.remove('light-theme', 'dark-theme', 'system-theme', 'coffee-theme');
+            container.classList.remove('light-theme', 'dark-theme', 'system-theme', 'coffee-theme');
+            
+            // Apply selected theme
+            if (theme === 'dark') {
+                body.classList.add('dark-theme');
+                container.classList.add('dark-theme');
+                body.style.backgroundColor = '#1e1e1e';
+                body.style.color = '#ffffff';
+                container.style.backgroundColor = '#2d2d2d';
+                container.style.color = '#ffffff';
+            } else if (theme === 'coffee') {
+                body.classList.add('coffee-theme');
+                container.classList.add('coffee-theme');
+                body.style.backgroundColor = '#6f4e37';
+                body.style.color = '#f5f5f5';
+                container.style.backgroundColor = '#8b6b4f';
+                container.style.color = '#f5f5f5';
+            } else {
+                // Light or system theme
+                body.classList.add('light-theme');
+                container.classList.add('light-theme');
+                body.style.backgroundColor = '#f5f5f5';
+                body.style.color = '#333';
+                container.style.backgroundColor = 'white';
+                container.style.color = '#333';
+            }
+        }
+        
+        // Helper function to capitalize first letter
+        function capitalizeFirst(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // logout link
+        (function(){
+          const lg = document.getElementById('logoutLinkTop');
+          if(lg) lg.addEventListener('click', function(e){ 
+              e.preventDefault(); 
+              try{ 
+                  sessionStorage.clear(); 
+                  localStorage.clear();
+              } catch(err) {} 
+              window.location.href='index.html'; 
+          });
+        })();
+    </script>
+</body>
+</html>

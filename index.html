@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P2P Chat - Secure Communication</title>
+  <link rel="stylesheet" href="sign.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+    * {
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    /* Utility classes for the gallery */
+    .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+    .font-semibold { font-weight: 600; }
+    .text-center { text-align: center; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+    .text-slate-500 { color: rgb(100 116 139); }
+    .mt-2 { margin-top: 0.5rem; }
+    .max-w-lg { max-width: 32rem; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .gap-6 { gap: 1.5rem; }
+    .h-\[400px\] { height: 400px; }
+    .w-full { width: 100%; }
+    .max-w-5xl { max-width: 64rem; }
+    .mt-10 { margin-top: 2.5rem; }
+    .relative { position: relative; }
+    .group { position: relative; }
+    .flex-grow { flex-grow: 1; }
+    .transition-all { transition-property: all; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+    .w-56 { width: 14rem; }
+    .duration-500 { transition-duration: 500ms; }
+    .hover\:w-full:hover { width: 100%; }
+    .h-full { height: 100%; }
+    .object-cover { object-fit: cover; }
+    .object-center { object-position: center; }
+    .object-right { object-position: right; }
+    .absolute { position: absolute; }
+    .inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+    .flex-col { flex-direction: column; }
+    .justify-end { justify-content: flex-end; }
+    .p-10 { padding: 2.5rem; }
+    .text-white { color: rgb(255 255 255); }
+    .bg-black\/50 { background-color: rgb(0 0 0 / 0.5); }
+    .opacity-0 { opacity: 0; }
+    .group-hover\:opacity-100:group-hover { opacity: 1; }
+    .duration-300 { transition-duration: 300ms; }
+    
+    /* Form styles */
+    .hidden { display: none; }
+    .success-message { 
+      color: green; 
+      margin-top: 10px; 
+      padding: 10px;
+      background: #f0fff0;
+      border: 1px solid green;
+      border-radius: 4px;
+    }
+    .error-message { 
+      color: red; 
+      margin-top: 10px; 
+      padding: 10px;
+      background: #fff0f0;
+      border: 1px solid red;
+      border-radius: 4px;
+
+
+      /* Modal styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 10% auto;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  position: absolute;
+  right: 1rem;
+  top: 0.5rem;
+}
+
+.close:hover {
+  color: black;
+}
+
+/* Form styles */
+.hidden {
+  display: none !important;
+}
+
+.interactive-btn {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.interactive-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.interactive-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.interactive-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.interactive-word {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: inline-block;
+}
+    }
+  </style>
+</head>
+<body class="with-bg">
+  <header>
+    <div class="top-nav">
+      <img src="logo.png" alt="P2P Chat Logo" class="logo">
+      <nav>
+        <a href="index.html">Home</a>
+        <a href="tp.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="setting.html">Settings</a>
+        <a href="#" id="logoutLink">Logout</a>
+      </nav>
+    </div>
+  </header>
+  
+  <!-- Animated background layers -->
+  <div class="bg-visual">
+    <div class="blob b1"></div>
+    <div class="blob b2"></div>
+    <div class="blob b3"></div>
+    <div class="blob b4"></div>
+    <div class="gradient-overlay"></div>
+  </div>
+
+  <section class="hero">
+    <h1>Welcome to P2P Chat</h1>
+    <p>Connect with anyone, anywhere — securely and instantly.</p>
+    <button id="signupHeroBtn" class="interactive-btn">Join Now</button>
+  </section>
+
+  <section class="promotions">
+    <div class="promo-card interactive-card" data-title="Fast Connections" data-desc="Experience lightning-fast peer-to-peer communication.">
+      <h3>🚀 Fast Connections</h3>
+      <p>Experience lightning-fast peer-to-peer communication.</p>
+    </div>
+    <div class="promo-card interactive-card" data-title="Secure Messaging" data-desc="Your data stays private — end-to-end encryption built in.">
+      <h3>🔒 Secure Messaging</h3>
+      <p>Your data stays private — end-to-end encryption built in.</p>
+    </div>
+    <div class="promo-card interactive-card" data-title="Cross Platform" data-desc="Use P2P Chat on any device: mobile, desktop, or tablet.">
+      <h3>🌐 Cross Platform</h3>
+      <p>Use P2P Chat on any device: mobile, desktop, or tablet.</p>
+    </div>
+    <!-- Added promo a2 and a4 -->
+    <div id="a2" class="promo-card interactive-card highlight">
+      <h3>💬 Messenger aggregator in the unified window</h3>
+      <p>Bring multiple messaging channels together into a single unified window for seamless workflows.</p>
+    </div>
+    <div id="a4" class="promo-card interactive-card highlight">
+      <h3>📈 Stable communication and effective dialogues</h3>
+      <p>Stable communication and effective dialogues for the revenue growth and increased awareness of the company!</p>
+    </div>
+  </section>
+
+  <!-- Signup Modal -->
+  <div class="modal" id="signupModal">
+    <div class="modal-content interactive-card">
+      <span class="close" id="closeModal">&times;</span>
+      <h2>Sign Up</h2>
+      <form id="signupForm">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" minlength="8" required>
+        <button type="submit" class="signup-btn interactive-btn">Sign Up</button>
+      </form>
+      <div id="signupMessage"></div>
+    </div>
+  </div>
+
+  <!-- Promo detail modal (opens when user clicks a promo card) -->
+  <div class="modal" id="promoModal" aria-hidden="true">
+    <div class="modal-content interactive-card">
+      <button class="close" id="closePromo">&times;</button>
+      <h2 id="promoTitle">Promo</h2>
+      <p id="promoDesc">Details...</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Signup Form -->
+    <div id="signup-form">
+      <h2>Create Account</h2>
+      <form id="mainSignupForm">
+        <input type="text" id="signup-username" name="username" placeholder="Username" required>
+        <input type="email" id="signup-email" name="email" placeholder="Email" required>
+        <input type="password" id="signup-password" name="password" placeholder="Password (min 8 chars)" minlength="8" required>
+        <button type="submit" id="signup-btn">Register</button>
+      </form>
+      <div id="mainSignupMessage"></div>
+      <div class="social-buttons">
+        <button class="google-btn" id="google-signup">Sign up with Google</button>
+        <button class="facebook-btn" id="facebook-signup">Sign up with Facebook</button>
+      </div>
+      <div class="toggle-link" id="show-login-link">Already have an account? Login</div>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form" class="hidden">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <input type="text" id="login-username" name="username" placeholder="Username" required>
+        <input type="password" id="login-password" name="password" placeholder="Password" required>
+        <button type="submit" id="login-btn">Login</button>
+      </form>
+      <div id="loginMessage"></div>
+      <div class="social-buttons">
+        <button class="google-btn" id="google-login">Login with Google</button>
+        <button class="facebook-btn" id="facebook-login">Login with Facebook</button>
+      </div>
+      <div class="toggle-link" id="show-signup-link">New user? Sign Up</div>
+    </div>
+
+    <!-- Welcome Page -->
+    <div id="welcome-page" class="hidden">
+      <h2>Welcome 🎉</h2>
+      <p id="welcome-msg"></p>
+      <button id="logout-btn">Logout</button>
+    </div>
+  </div>
+
+  <h1 class="text-3xl font-semibold text-center mx-auto">Our Latest Creations</h1>
+  <p class="text-sm text-slate-500 text-center mt-2 max-w-lg mx-auto">A visual collection of our most recent works -
+      each piece crafted with intention, emotion, and style.</p>
+
+  <div id="galleryRow" class="flex items-center gap-6 h-[400px] w-full max-w-5xl mt-10 mx-auto">
+      <div class="relative group flex-grow transition-all w-56 h-[400px] duration-500 hover:w-full">
+          <img class="h-full w-full object-cover object-center"
+              src="https://images.unsplash.com/photo-1543269865-0a740d43b90c?q=80&w=800&h=400&auto=format&fit=crop"
+              alt="Prompt engineers collaborating">
+          <div
+              class="absolute inset-0 flex flex-col justify-end p-10 text-white bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <h1 class="text-3xl">Prompt engineers</h1>
+              <p class="text-sm">Bridging the gap between human intent and machine understanding through expert prompt design.</p>
+          </div>
+      </div>
+      <div class="relative group flex-grow transition-all w-56 h-[400px] duration-500 hover:w-full">
+          <img class="h-full w-full object-cover object-right"
+              src="https://images.unsplash.com/photo-1714976326351-0ecf0244f0fc?q=80&w=800&h=400&auto=format&fit=crop"
+              alt="Data scientists analyzing data">
+          <div
+              class="absolute inset-0 flex flex-col justify-end p-10 text-white bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <h1 class="text-3xl">Data scientists</h1>
+              <p class="text-sm">Bridging the gap between human intent and machine understanding through expert prompt design.</p>
+          </div>
+      </div>
+      <div class="relative group flex-grow transition-all w-56 h-[400px] duration-500 hover:w-full">
+          <img class="h-full w-full object-cover object-center"
+              src="https://images.unsplash.com/photo-1736220690062-79e12ca75262?q=80&w=800&h=400&auto=format&fit=crop"
+              alt="Software engineers coding">
+          <div
+              class="absolute inset-0 flex flex-col justify-end p-10 text-white bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <h1 class="text-3xl">Software engineers</h1>
+              <p class="text-sm">Bridging the gap between human intent and machine understanding through expert prompt design.</p>
+          </div>
+      </div>
+  </div>
+  
+  <section class="inspired">
+    <h2>Inspired Words</h2>
+    <div class="inspired-words">
+        <span class="interactive-word">Connect</span>
+        <span class="interactive-word">Empower</span>
+        <span class="interactive-word">Innovate</span>
+        <span class="interactive-word">Share</span>
+        <span class="interactive-word">Inspire</span>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="logo.png" alt="P2P Chat" class="footer-logo">
+        <p class="brand-desc">P2P Chat — secure, fast, and private communication.</p>
+      </div>
+
+      <div class="footer-links">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Blog</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-legal">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#">Terms of Service</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Cookies</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-contact">
+        <h4>Contact</h4>
+        <p>Email: <a href="mailto:support@p2pchat.example">support@p2pchat.example</a></p>
+        <p>Phone: <a href="tel:+1234567890">+1 (234) 567-890</a></p>
+        <div class="social-icons">
+          <a href="#" aria-label="Twitter"><img src="twitter-icon.png" alt="Twitter" class="social-icon"></a>
+          <a href="#" aria-label="Facebook"><img src="facebook-icon.png" alt="Facebook" class="social-icon"></a>
+          <a href="#" aria-label="LinkedIn"><img src="linkedin-icon.png" alt="LinkedIn" class="social-icon"></a>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <small>&copy; 2025 P2P Chat. All rights reserved.</small>
+    </div>
+  </footer>
+<script>
+// API configuration
+const API_BASE = 'http://localhost:5000/api';
+
+// DOM Elements
+const signupForm = document.getElementById('signupForm');
+const mainSignupForm = document.getElementById('mainSignupForm');
+const loginForm = document.getElementById('loginForm');
+const signupModal = document.getElementById('signupModal');
+const closeModal = document.getElementById('closeModal');
+const signupHeroBtn = document.getElementById('signupHeroBtn');
+const showLoginLink = document.getElementById('show-login-link');
+const showSignupLink = document.getElementById('show-signup-link');
+const signupFormDiv = document.getElementById('signup-form');
+const loginFormDiv = document.getElementById('login-form');
+const welcomePage = document.getElementById('welcome-page');
+const logoutBtn = document.getElementById('logout-btn');
+const logoutLink = document.getElementById('logoutLink');
+
+// Modal functionality
+signupHeroBtn.addEventListener('click', () => {
+    signupModal.style.display = 'block';
+});
+
+closeModal.addEventListener('click', () => {
+    signupModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === signupModal) {
+        signupModal.style.display = 'none';
+    }
+});
+
+// Form toggle functionality
+showLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    signupFormDiv.classList.add('hidden');
+    loginFormDiv.classList.remove('hidden');
+});
+
+showSignupLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginFormDiv.classList.add('hidden');
+    signupFormDiv.classList.remove('hidden');
+});
+
+// Signup functionality
+async function handleSignup(formData, messageElement) {
+    try {
+        const response = await fetch(`${API_BASE}/signup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            showMessage(messageElement, data.message, 'success');
+            setTimeout(() => {
+                signupFormDiv.classList.add('hidden');
+                loginFormDiv.classList.remove('hidden');
+                signupModal.style.display = 'none';
+            }, 2000);
+        } else {
+            showMessage(messageElement, data.message, 'error');
+        }
+    } catch (error) {
+        showMessage(messageElement, 'Network error. Please try again.', 'error');
+    }
+}
+
+// Login functionality
+async function handleLogin(formData) {
+    try {
+        const response = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        const messageElement = document.getElementById('loginMessage');
+
+        if (data.success) {
+            showMessage(messageElement, data.message, 'success');
+
+            // Store COMPLETE user data for stp.html
+            const userData = {
+                id: data.user.id,
+                username: data.user.username,
+                email: data.user.email,
+                user_id: data.user.id, // For compatibility with stp.html
+                profile_data: data.user.profile_data || {
+                    avatar: `https://i.pravatar.cc/150?u=${data.user.username}`
+                }
+            };
+
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('loginTime', new Date().toISOString());
+
+            console.log('✅ Login successful, user data stored:', userData);
+
+            // Redirect to tp.html (chat interface)
+            setTimeout(() => {
+                window.location.href = 'tp.html';
+            }, 1000);
+
+        } else {
+            showMessage(messageElement, data.message, 'error');
+        }
+    } catch (error) {
+        const messageElement = document.getElementById('loginMessage');
+        showMessage(messageElement, 'Network error. Please try again.', 'error');
+    }
+}
+
+// Utility function to show messages
+function showMessage(element, message, type) {
+    element.innerHTML = `<div class="${type}-message">${message}</div>`;
+    setTimeout(() => {
+        element.innerHTML = '';
+    }, 5000);
+}
+
+// Event listeners for forms
+if (signupForm) {
+    signupForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = {
+            username: signupForm.username.value,
+            email: signupForm.email.value,
+            password: signupForm.password.value
+        };
+        handleSignup(formData, document.getElementById('signupMessage'));
+    });
+}
+
+if (mainSignupForm) {
+    mainSignupForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = {
+            username: document.getElementById('signup-username').value,
+            email: document.getElementById('signup-email').value,
+            password: document.getElementById('signup-password').value
+        };
+        handleSignup(formData, document.getElementById('mainSignupMessage'));
+    });
+}
+
+if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const formData = {
+            username: document.getElementById('login-username').value,
+            password: document.getElementById('login-password').value
+        };
+        handleLogin(formData);
+    });
+}
+
+// Logout functionality
+function handleLogout() {
+    localStorage.removeItem('currentUser');
+    window.location.href = 'index.html';
+}
+
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', handleLogout);
+}
+
+if (logoutLink) {
+    logoutLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
+    });
+}
+
+// Check if user is already logged in
+function checkAuthStatus() {
+    const currentUser = localStorage.getItem('currentUser');
+    if (currentUser && welcomePage) {
+        const user = JSON.parse(currentUser);
+        document.getElementById('welcome-msg').textContent = `Welcome back, ${user.username}!`;
+        signupFormDiv.classList.add('hidden');
+        loginFormDiv.classList.add('hidden');
+        welcomePage.classList.remove('hidden');
+    }
+}
+
+// Initialize auth check
+checkAuthStatus();
+
+// Promo card interactions
+const promoCards = document.querySelectorAll('.interactive-card');
+const promoModal = document.getElementById('promoModal');
+const closePromo = document.getElementById('closePromo');
+const promoTitle = document.getElementById('promoTitle');
+const promoDesc = document.getElementById('promoDesc');
+
+promoCards.forEach(card => {
+    card.addEventListener('click', () => {
+        const title = card.getAttribute('data-title') || card.querySelector('h3').textContent;
+        const desc = card.getAttribute('data-desc') || card.querySelector('p').textContent;
+
+        promoTitle.textContent = title;
+        promoDesc.textContent = desc;
+        promoModal.style.display = 'block';
+    });
+});
+
+closePromo.addEventListener('click', () => {
+    promoModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === promoModal) {
+        promoModal.style.display = 'none';
+    }
+});
+
+// Interactive words animation
+const interactiveWords = document.querySelectorAll('.interactive-word');
+interactiveWords.forEach(word => {
+    word.addEventListener('mouseover', () => {
+        word.style.transform = 'scale(1.2) translateY(-5px)';
+        word.style.color = '#4F46E5';
+    });
+
+    word.addEventListener('mouseout', () => {
+        word.style.transform = 'scale(1) translateY(0)';
+        word.style.color = '';
+    });
+});
+
+// Gallery hover effects
+const galleryItems = document.querySelectorAll('#galleryRow > div');
+galleryItems.forEach(item => {
+    item.addEventListener('mouseenter', () => {
+        galleryItems.forEach(other => {
+            if (other !== item) {
+                other.style.width = '80px';
+            }
+        });
+    });
+
+    item.addEventListener('mouseleave', () => {
+        galleryItems.forEach(other => {
+            other.style.width = '14rem';
+        });
+    });
+});
+</script>
+</body>
+</html>

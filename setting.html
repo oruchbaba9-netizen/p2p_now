@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Settings</title>
+    <link rel="stylesheet" href="setting.css">
+</head>
+<body>
+    <!-- Top nav -->
+    <div class="top-nav-bar" style="background:#fff;padding:10px;border-bottom:1px solid #eee;">
+        <nav style="display:flex;gap:12px;align-items:center;max-width:1000px;margin:0 auto;">
+            <a href="tp.html">Dashboard</a>
+            <a href="profile.html">Profile</a>
+            <a href="setting.html">Settings</a>
+            <a href="oldindex.html" id="logoutLinkTop">Logout</a>
+        </nav>
+    </div>
+    <div class="container">
+        <header>
+            <button class="back-btn" id="backBtn">←</button>
+            <h1>Settings</h1>
+        </header>
+        
+        <div class="profile-section">
+            <div class="profile-pic" id="profilePic">
+                JD
+                <div class="profile-pic-upload" id="profilePicUpload">+</div>
+            </div>
+            <div class="profile-name" id="profileName">John Doe</div>
+            <div class="profile-status" id="profileStatus">Online</div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Account</div>
+            <ul class="settings-list">
+                <li class="settings-item" data-modal="profile-modal">
+                    <div class="item-icon">👤</div>
+                    <div class="item-content">
+                        <div class="item-title">Profile</div>
+                        <div class="item-subtitle">Update your profile information</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="privacy-modal">
+                    <div class="item-icon">🔒</div>
+                    <div class="item-content">
+                        <div class="item-title">Privacy</div>
+                        <div class="item-subtitle">Manage your privacy settings</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="security-modal">
+                    <div class="item-icon">🛡️</div>
+                    <div class="item-content">
+                        <div class="item-title">Security</div>
+                        <div class="item-subtitle">Change password and security options</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Chats</div>
+            <ul class="settings-list">
+                <li class="settings-item" data-modal="wallpaper-modal">
+                    <div class="item-icon">💬</div>
+                    <div class="item-content">
+                        <div class="item-title">Chat Wallpaper</div>
+                        <div class="item-subtitle">Change your chat background</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item" data-modal="theme-modal">
+                    <div class="item-icon">📱</div>
+                    <div class="item-content">
+                        <div class="item-title">Theme</div>
+                        <div class="item-subtitle">Light / Dark / System / Coffee</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Notifications</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">🔔</div>
+                    <div class="item-content">
+                        <div class="item-title">Message Notifications</div>
+                        <div class="item-subtitle">Enable or disable message alerts</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="messageNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">📢</div>
+                    <div class="item-content">
+                        <div class="item-title">Group Notifications</div>
+                        <div class="item-subtitle">Control notifications from groups</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="groupNotifications" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">🔕</div>
+                    <div class="item-content">
+                        <div class="item-title">Mute Conversations</div>
+                        <div class="item-subtitle">Manage muted chats</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Storage and Data</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">📊</div>
+                    <div class="item-content">
+                        <div class="item-title">Storage Usage</div>
+                        <div class="item-subtitle">1.2 GB of 5 GB used</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">📥</div>
+                    <div class="item-content">
+                        <div class="item-title">Media Auto-Download</div>
+                        <div class="item-subtitle">Configure auto-download settings</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="settings-section">
+            <div class="section-title">Help</div>
+            <ul class="settings-list">
+                <li class="settings-item">
+                    <div class="item-icon">❓</div>
+                    <div class="item-content">
+                        <div class="item-title">Help Center</div>
+                        <div class="item-subtitle">Get help with IMO</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+                <li class="settings-item">
+                    <div class="item-icon">ℹ️</div>
+                    <div class="item-content">
+                        <div class="item-title">About</div>
+                        <div class="item-subtitle">IMO Version 2.0.123</div>
+                    </div>
+                    <div class="item-action">→</div>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Profile Modal -->
+    <div class="modal" id="profile-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Edit Profile</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" class="form-control" value="John Doe">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <input type="text" id="status" class="form-control" value="Online">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" class="form-control" value="john.doe@example.com">
+                </div>
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <div class="file-input-wrapper">
+                        <div class="file-input-button">Choose Image</div>
+                        <input type="file" id="profileImage" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveProfile">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Privacy Modal -->
+    <div class="modal" id="privacy-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Privacy Settings</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenEveryone" name="lastSeen" value="everyone" checked>
+                    <label for="lastSeenEveryone">
+                        <div class="item-title">Last Seen - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your last seen time</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenMyContacts" name="lastSeen" value="myContacts">
+                    <label for="lastSeenMyContacts">
+                        <div class="item-title">Last Seen - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your last seen time</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="lastSeenNobody" name="lastSeen" value="nobody">
+                    <label for="lastSeenNobody">
+                        <div class="item-title">Last Seen - Nobody</div>
+                        <div class="item-subtitle">No one can see your last seen time</div>
+                    </label>
+                </div>
+                
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoEveryone" name="profilePhoto" value="everyone" checked>
+                    <label for="profilePhotoEveryone">
+                        <div class="item-title">Profile Photo - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your profile photo</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoMyContacts" name="profilePhoto" value="myContacts">
+                    <label for="profilePhotoMyContacts">
+                        <div class="item-title">Profile Photo - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your profile photo</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="profilePhotoNobody" name="profilePhoto" value="nobody">
+                    <label for="profilePhotoNobody">
+                        <div class="item-title">Profile Photo - Nobody</div>
+                        <div class="item-subtitle">No one can see your profile photo</div>
+                    </label>
+                </div>
+                
+                <div class="privacy-option">
+                    <input type="radio" id="statusEveryone" name="status" value="everyone" checked>
+                    <label for="statusEveryone">
+                        <div class="item-title">Status - Everyone</div>
+                        <div class="item-subtitle">Anyone can see your status</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="statusMyContacts" name="status" value="myContacts">
+                    <label for="statusMyContacts">
+                        <div class="item-title">Status - My Contacts</div>
+                        <div class="item-subtitle">Only your contacts can see your status</div>
+                    </label>
+                </div>
+                <div class="privacy-option">
+                    <input type="radio" id="statusNobody" name="status" value="nobody">
+                    <label for="statusNobody">
+                        <div class="item-title">Status - Nobody</div>
+                        <div class="item-subtitle">No one can see your status</div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" id="savePrivacy">Save Privacy Settings</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Modal -->
+    <div class="modal" id="security-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Security</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm New Password</label>
+                    <input type="password" id="confirm-password" class="form-control">
+                </div>
+                <div class="settings-item">
+                    <div class="item-content">
+                        <div class="item-title">Two-Step Verification</div>
+                        <div class="item-subtitle">Add extra security to your account</div>
+                    </div>
+                    <div class="item-action">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="twoStepVerification">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="updatePassword">Update Password</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wallpaper Modal -->
+    <div class="modal" id="wallpaper-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Chat Wallpaper</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Wallpaper</label>
+                    <div class="wallpaper-options">
+                        <div class="wallpaper-option selected" data-wallpaper="default">
+                            <div style="width:100%;height:100%;background:linear-gradient(135deg, #0088cc, #00aaff);"></div>
+                        </div>
+                        <div class="wallpaper-option" data-wallpaper="pattern1">
+                            <div style="width:100%;height:100%;background:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDgwIDgwIj48cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iODAiIGZpbGw9IiNmZmYiLz48cGF0aCBkPSJNMCA0MEg0MFY4MEgweiIgZmlsbD0iI2YwZjBmMCIvPjxwYXRoIGQ9Ik00MCAwSDgwVjQwSDQweiIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==')"></div>
+                        </div>
+                        <div class="wallpaper-option" data-wallpaper="pattern2">
+                            <div style="width:100%;height:100%;background:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgdmlld0JveD0iMCAwIDgwIDgwIj48cmVjdCB3aWR0aD0iODAiIGhlaWdodD0iODAiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjQwIiByPSIyMCIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==')"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Or choose a color</label>
+                    <div class="wallpaper-options">
+                        <div class="color-option selected" style="background-color:#ffffff;" data-color="#ffffff"></div>
+                        <div class="color-option" style="background-color:#f0f0f0;" data-color="#f0f0f0"></div>
+                        <div class="color-option" style="background-color:#e6f7ff;" data-color="#e6f7ff"></div>
+                        <div class="color-option" style="background-color:#fff2e8;" data-color="#fff2e8"></div>
+                        <div class="color-option" style="background-color:#f6ffed;" data-color="#f6ffed"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Or upload your own image</label>
+                    <div class="file-input-wrapper">
+                        <div class="file-input-button">Choose Image</div>
+                        <input type="file" id="wallpaperImage" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveWallpaper">Apply Wallpaper</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Theme Modal -->
+    <div class="modal" id="theme-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Theme Settings</div>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="theme-option">
+                    <input type="radio" id="lightTheme" name="theme" value="light" checked>
+                    <label for="lightTheme">
+                        <div class="theme-preview light-theme"></div>
+                        <div>
+                            <div class="item-title">Light</div>
+                            <div class="item-subtitle">Light background with dark text</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="darkTheme" name="theme" value="dark">
+                    <label for="darkTheme">
+                        <div class="theme-preview dark-theme"></div>
+                        <div>
+                            <div class="item-title">Dark</div>
+                            <div class="item-subtitle">Dark background with light text</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="systemTheme" name="theme" value="system">
+                    <label for="systemTheme">
+                        <div class="theme-preview system-theme"></div>
+                        <div>
+                            <div class="item-title">System</div>
+                            <div class="item-subtitle">Follow your device's theme setting</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="theme-option">
+                    <input type="radio" id="coffeeTheme" name="theme" value="coffee">
+                    <label for="coffeeTheme">
+                        <div class="theme-preview coffee-theme"></div>
+                        <div>
+                            <div class="item-title">Coffee</div>
+                            <div class="item-subtitle">Warm brown tones for a cozy feel</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary close-modal">Cancel</button>
+                <button class="btn btn-primary" id="saveTheme">Apply Theme</button>
+            </div>
+        </div>
+    </div>
+
+   <script>
+    const API_BASE = 'http://localhost:8000/api';
+    let currentUserId = 1; // Default user ID
+
+    // Back button functionality
+    document.getElementById('backBtn').addEventListener('click', function() {
+        window.history.back();
+    });
+
+    // Modal functionality
+    const settingsItems = document.querySelectorAll('.settings-item');
+    const modals = document.querySelectorAll('.modal');
+    const closeButtons = document.querySelectorAll('.close-modal');
+
+    settingsItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const modalId = this.getAttribute('data-modal');
+            if (modalId) {
+                document.getElementById(modalId).style.display = 'flex';
+                loadSavedSettings(modalId);
+            }
+        });
+    });
+
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.closest('.modal').style.display = 'none';
+        });
+    });
+
+    // Close modal when clicking outside
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+            }
+        });
+    });
+
+    // Toggle switch functionality
+    const toggleSwitches = document.querySelectorAll('.toggle-switch input');
+    toggleSwitches.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            saveNotificationSettings();
+        });
+    });
+
+    // Shared avatar storage key
+    const AVATAR_KEY = 'p2p_profile_avatar';
+
+    // Profile picture upload
+    document.getElementById('profileImage').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const profilePic = document.getElementById('profilePic');
+                profilePic.innerHTML = `<img src="${event.target.result}" alt="Profile Picture">`;
+                profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+
+                // Reattach event listener
+                document.getElementById('profilePicUpload').addEventListener('click', function() {
+                    document.getElementById('profileImage').click();
+                });
+
+                // Auto-save profile picture to shared key
+                saveProfilePicture(event.target.result);
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
+
+    // Profile picture upload button
+    document.getElementById('profilePicUpload').addEventListener('click', function() {
+        document.getElementById('profileImage').click();
+    });
+
+    // Save avatar into localStorage and dispatch storage event for same-window listeners
+    function saveProfilePicture(dataUrl) {
+        try {
+            localStorage.setItem(AVATAR_KEY, dataUrl);
+            // Also update profilePic UI (already done by caller)
+            // For same-window updates, manually call applySharedAvatar
+            applySharedAvatar(dataUrl);
+        } catch (err) {
+            console.error('Failed to save profile picture:', err);
+        }
+    }
+
+    function applySharedAvatar(dataUrl) {
+        const profilePic = document.getElementById('profilePic');
+        if (profilePic) {
+            profilePic.innerHTML = `<img src="${dataUrl}" alt="Profile Picture">`;
+            profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+            document.getElementById('profilePicUpload').addEventListener('click', function() {
+                document.getElementById('profileImage').click();
+            });
+        }
+    }
+
+// add some script
+
+// Function to update profile in tp.html
+function updateProfileInDashboard(profileData) {
+    // Store profile data in localStorage for cross-page access
+    localStorage.setItem('userProfile', JSON.stringify(profileData));
+
+    // If tp.html is open in another tab, trigger storage event
+    const event = new Event('storage');
+    window.dispatchEvent(event);
+
+    // Also broadcast to other tabs using localStorage
+    localStorage.setItem('profileUpdated', Date.now().toString());
+}
+
+// Function to update profile picture in dashboard
+function updateProfilePictureInDashboard(imageData) {
+    localStorage.setItem('userProfilePicture', imageData);
+    localStorage.setItem('profilePictureUpdated', Date.now().toString());
+}
+
+// Modify the saveProfile function to call the update function
+document.getElementById('saveProfile').addEventListener('click', async function() {
+    const name = document.getElementById('name').value;
+    const status = document.getElementById('status').value;
+    const email = document.getElementById('email').value;
+
+    try {
+        const response = await fetch(`${API_BASE}/profile/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: currentUserId,
+                display_name: name,
+                status: status
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update local UI
+            document.getElementById('profileName').textContent = name;
+            document.getElementById('profileStatus').textContent = status;
+            document.getElementById('profile-modal').style.display = 'none';
+
+            // Update profile in dashboard
+            updateProfileInDashboard({
+                name: name,
+                status: status,
+                email: email
+            });
+
+            showToast('Profile updated successfully!');
+        } else {
+            showToast('Error: ' + data.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        showToast('Error saving profile', 'error');
+    }
+});
+
+// Update profile picture upload to sync with dashboard
+document.getElementById('profileImage').addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const profilePic = document.getElementById('profilePic');
+            profilePic.innerHTML = `<img src="${event.target.result}" alt="Profile Picture">`;
+            profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+
+            // Reattach event listener
+            document.getElementById('profilePicUpload').addEventListener('click', function() {
+                document.getElementById('profileImage').click();
+            });
+
+            // Save to localStorage and update dashboard
+            saveProfilePicture(event.target.result);
+            updateProfilePictureInDashboard(event.target.result);
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+});
+    // Load avatar from shared key on page load
+    function loadSharedAvatarOnSettings() {
+        const saved = localStorage.getItem(AVATAR_KEY);
+        if (saved) {
+            applySharedAvatar(saved);
+        }
+    }
+
+    // Listen for storage events (other tabs)
+    window.addEventListener('storage', (e) => {
+        if (e.key === AVATAR_KEY) {
+            applySharedAvatar(e.newValue);
+        }
+    });
+
+    // Auto-open profile modal when arriving with #profile
+    window.addEventListener('DOMContentLoaded', () => {
+        loadSharedAvatarOnSettings();
+        if (location.hash === '#profile') {
+            document.getElementById('profile-modal').style.display = 'flex';
+            loadSavedSettings('profile-modal');
+        }
+    });
+
+    // Save profile information
+    document.getElementById('saveProfile').addEventListener('click', async function() {
+        const name = document.getElementById('name').value;
+        const status = document.getElementById('status').value;
+        const email = document.getElementById('email').value;
+
+        try {
+            const response = await fetch(`${API_BASE}/profile/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    display_name: name,
+                    status: status
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('profileName').textContent = name;
+                document.getElementById('profileStatus').textContent = status;
+                document.getElementById('profile-modal').style.display = 'none';
+                showToast('Profile updated successfully!');
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            showToast('Error saving profile', 'error');
+        }
+    });
+
+    // Save privacy settings
+    document.getElementById('savePrivacy').addEventListener('click', async function() {
+        const lastSeen = document.querySelector('input[name="lastSeen"]:checked').value;
+        const profilePhoto = document.querySelector('input[name="profilePhoto"]:checked').value;
+        const statusVisibility = document.querySelector('input[name="status"]:checked').value;
+
+        try {
+            const response = await fetch(`${API_BASE}/privacy/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    last_seen: lastSeen,
+                    profile_photo: profilePhoto,
+                    status_visibility: statusVisibility
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('privacy-modal').style.display = 'none';
+                showToast('Privacy settings saved!');
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error saving privacy:', error);
+            showToast('Error saving privacy settings', 'error');
+        }
+    });
+
+    // Wallpaper selection
+    const wallpaperOptions = document.querySelectorAll('.wallpaper-option');
+    wallpaperOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            wallpaperOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // Color selection
+    const colorOptions = document.querySelectorAll('.color-option');
+    colorOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            colorOptions.forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+        });
+    });
+
+    // Save wallpaper
+    document.getElementById('saveWallpaper').addEventListener('click', async function() {
+        const selectedWallpaper = document.querySelector('.wallpaper-option.selected').getAttribute('data-wallpaper');
+        const selectedColor = document.querySelector('.color-option.selected').getAttribute('data-color');
+
+        try {
+            const response = await fetch(`${API_BASE}/theme/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    theme: getCurrentTheme(),
+                    chat_wallpaper: selectedWallpaper,
+                    wallpaper_color: selectedColor
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                document.getElementById('wallpaper-modal').style.display = 'none';
+                showToast('Wallpaper applied!');
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error saving wallpaper:', error);
+            showToast('Error saving wallpaper', 'error');
+        }
+    });
+
+    // Save theme
+    document.getElementById('saveTheme').addEventListener('click', async function() {
+        const selectedTheme = document.querySelector('input[name="theme"]:checked').value;
+
+        try {
+            const response = await fetch(`${API_BASE}/theme/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    theme: selectedTheme,
+                    chat_wallpaper: getCurrentWallpaper(),
+                    wallpaper_color: getCurrentWallpaperColor()
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                applyTheme(selectedTheme);
+                document.getElementById('theme-modal').style.display = 'none';
+                showToast('Theme applied!');
+            } else {
+                showToast('Error: ' + data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error saving theme:', error);
+            showToast('Error saving theme', 'error');
+        }
+    });
+
+    // Save notification settings
+    async function saveNotificationSettings() {
+        const messageNotifications = document.getElementById('messageNotifications').checked;
+        const groupNotifications = document.getElementById('groupNotifications').checked;
+        const twoStepVerification = document.getElementById('twoStepVerification').checked;
+
+        try {
+            const response = await fetch(`${API_BASE}/notifications/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: currentUserId,
+                    message_notifications: messageNotifications,
+                    group_notifications: groupNotifications,
+                    two_step_verification: twoStepVerification
+                })
+            });
+
+            const data = await response.json();
+
+            if (!data.success) {
+                console.error('Error saving notifications:', data.message);
+            }
+        } catch (error) {
+            console.error('Error saving notifications:', error);
+        }
+    }
+
+    // Load all settings when page loads
+    document.addEventListener('DOMContentLoaded', async function() {
+        await loadAllSettings();
+    });
+
+    // Function to load all settings from backend
+    async function loadAllSettings() {
+        try {
+            const response = await fetch(`${API_BASE}/settings/all?user_id=${currentUserId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const settings = data.settings;
+                applySettingsToUI(settings);
+            } else {
+                console.error('Error loading settings:', data.message);
+                loadFromLocalStorage();
+            }
+        } catch (error) {
+            console.error('Error loading from backend:', error);
+            loadFromLocalStorage();
+        }
+    }
+
+    // Apply settings to UI
+    function applySettingsToUI(settings) {
+        // Profile settings
+        if (settings.profile && settings.profile.display_name) {
+            document.getElementById('profileName').textContent = settings.profile.display_name;
+            document.getElementById('name').value = settings.profile.display_name;
+            document.getElementById('profileStatus').textContent = settings.profile.status;
+            document.getElementById('status').value = settings.profile.status;
+
+            if (settings.profile.profile_picture) {
+                const profilePic = document.getElementById('profilePic');
+                profilePic.innerHTML = `<img src="${settings.profile.profile_picture}" alt="Profile Picture">`;
+                profilePic.innerHTML += '<div class="profile-pic-upload" id="profilePicUpload">+</div>';
+                document.getElementById('profilePicUpload').addEventListener('click', function() {
+                    document.getElementById('profileImage').click();
+                });
+            }
+        }
+
+        // Privacy settings
+        if (settings.privacy) {
+            setRadioValue('lastSeen', settings.privacy.last_seen);
+            setRadioValue('profilePhoto', settings.privacy.profile_photo);
+            setRadioValue('status', settings.privacy.status_visibility);
+        }
+
+        // Theme settings
+        if (settings.theme) {
+            setRadioValue('theme', settings.theme.theme);
+            applyTheme(settings.theme.theme);
+
+            if (settings.theme.chat_wallpaper) {
+                const wallpaperOption = document.querySelector(`[data-wallpaper="${settings.theme.chat_wallpaper}"]`);
+                if (wallpaperOption) {
+                    wallpaperOptions.forEach(opt => opt.classList.remove('selected'));
+                    wallpaperOption.classList.add('selected');
+                }
+            }
+
+            if (settings.theme.wallpaper_color) {
+                const colorOption = document.querySelector(`[data-color="${settings.theme.wallpaper_color}"]`);
+                if (colorOption) {
+                    colorOptions.forEach(opt => opt.classList.remove('selected'));
+                    colorOption.classList.add('selected');
+                }
+            }
+        }
+
+        // Notification settings
+        if (settings.notifications) {
+            document.getElementById('messageNotifications').checked = settings.notifications.message_notifications;
+            document.getElementById('groupNotifications').checked = settings.notifications.group_notifications;
+            document.getElementById('twoStepVerification').checked = settings.notifications.two_step_verification;
+        }
+    }
+
+    // Helper functions
+    function setRadioValue(name, value) {
+        const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (radio) radio.checked = true;
+    }
+
+    function getCurrentTheme() {
+        const selectedTheme = document.querySelector('input[name="theme"]:checked');
+        return selectedTheme ? selectedTheme.value : 'light';
+    }
+
+    function getCurrentWallpaper() {
+        const selectedWallpaper = document.querySelector('.wallpaper-option.selected');
+        return selectedWallpaper ? selectedWallpaper.getAttribute('data-wallpaper') : 'default';
+    }
+
+    function getCurrentWallpaperColor() {
+        const selectedColor = document.querySelector('.color-option.selected');
+        return selectedColor ? selectedColor.getAttribute('data-color') : '#ffffff';
+    }
+
+    function applyTheme(theme) {
+        const body = document.body;
+        const container = document.querySelector('.container');
+
+        body.classList.remove('light-theme', 'dark-theme', 'system-theme', 'coffee-theme');
+        container.classList.remove('light-theme', 'dark-theme', 'system-theme', 'coffee-theme');
+
+        if (theme === 'dark') {
+            body.classList.add('dark-theme');
+            container.classList.add('dark-theme');
+            body.style.backgroundColor = '#1e1e1e';
+            body.style.color = '#ffffff';
+            container.style.backgroundColor = '#2d2d2d';
+        } else if (theme === 'coffee') {
+            body.classList.add('coffee-theme');
+            container.classList.add('coffee-theme');
+            body.style.backgroundColor = '#6f4e37';
+            body.style.color = '#f5f5f5';
+            container.style.backgroundColor = '#8b6b4f';
+        } else {
+            body.classList.add('light-theme');
+            container.classList.add('light-theme');
+            body.style.backgroundColor = '#f5f5f5';
+            body.style.color = '#333';
+            container.style.backgroundColor = 'white';
+        }
+    }
+
+    function showToast(message, type = 'success') {
+        // Simple toast notification
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'error' ? '#ff4444' : '#0088cc'};
+            color: white;
+            padding: 12px 20px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            document.body.removeChild(toast);
+        }, 3000);
+    }
+
+    function loadFromLocalStorage() {
+        // Fallback to localStorage
+        if (localStorage.getItem('profileName')) {
+            document.getElementById('profileName').textContent = localStorage.getItem('profileName');
+            document.getElementById('name').value = localStorage.getItem('profileName');
+        }
+    }
+
+    // logout link
+    (function(){
+        const lg = document.getElementById('logoutLinkTop');
+        if(lg) lg.addEventListener('click', function(e){
+            e.preventDefault();
+            try{
+                sessionStorage.clear();
+                localStorage.clear();
+            } catch(err) {}
+            window.location.href='index.html';
+        });
+    })();
+</script>
+</body>
+</html>

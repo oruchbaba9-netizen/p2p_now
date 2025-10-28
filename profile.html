@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMO Profile</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+        }
+        
+        .back-btn, .menu-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: background 0.3s;
+        }
+        
+        .back-btn:hover, .menu-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+        
+        .profile-header {
+            position: relative;
+            height: 200px;
+            background: linear-gradient(135deg, #0088cc, #00aaff);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding-top: 40px;
+        }
+        
+        .profile-pic-container {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .profile-pic {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffcc00, #ff9900);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            border: 4px solid white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .camera-icon {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: #0088cc;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            cursor: pointer;
+        }
+        
+        .profile-name {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .profile-status {
+            font-size: 14px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            background: #4cd964;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .profile-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 15px;
+        }
+        
+        .action-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .profile-details {
+            padding: 20px;
+        }
+        
+        .details-section {
+            margin-bottom: 25px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #0088cc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .detail-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .detail-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #f0f8ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0088cc;
+            margin-right: 15px;
+        }
+        
+        .detail-content {
+            flex: 1;
+        }
+        
+        .detail-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+        
+        .detail-value {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .detail-action {
+            color: #0088cc;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .media-section {
+            margin-top: 20px;
+        }
+        
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+        
+        .media-item {
+            aspect-ratio: 1;
+            background: #f0f0f0;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .media-item:nth-child(1) {
+            background: #ffcccc;
+        }
+        
+        .media-item:nth-child(2) {
+            background: #ccffcc;
+        }
+        
+        .media-item:nth-child(3) {
+            background: #ccccff;
+        }
+        
+        .media-item:nth-child(4) {
+            background: #ffffcc;
+        }
+        
+        .media-item:nth-child(5) {
+            background: #ffccff;
+        }
+        
+        .media-item:nth-child(6) {
+            background: #ccffff;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            animation: modalAppear 0.3s ease;
+        }
+        
+        @keyframes modalAppear {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-weight: 500;
+            font-size: 18px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn-primary {
+            background: #0088cc;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0077b3;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .context-menu {
+            position: absolute;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            padding: 10px 0;
+            z-index: 1000;
+            display: none;
+            width: 200px;
+            top: 60px;
+            right: 15px;
+        }
+        
+        .context-menu.active {
+            display: block;
+            animation: menuAppear 0.2s ease;
+        }
+        
+        @keyframes menuAppear {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+        
+        .menu-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .menu-item i {
+            width: 20px;
+            color: #666;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                box-shadow: none;
+            }
+            
+            .profile-pic {
+                width: 100px;
+                height: 100px;
+                font-size: 35px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top nav -->
+    <div class="top-nav-bar" style="background:#fff;padding:10px;border-bottom:1px solid #eee;">
+        <nav style="display:flex;gap:12px;align-items:center;max-width:1000px;margin:0 auto;">
+            <a href="tp.html">Dashboard</a>
+            <a href="profile.html">Profile</a>
+            <a href="setting.html">Settings</a>
+            <a href="oldindex.html" id="logoutLinkTop">Logout</a>
+        </nav>
+    </div>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <button class="back-btn" id="backBtn">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <h1>Profile</h1>
+            </div>
+            <div class="header-right">
+                <button class="menu-btn" id="menuBtn">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </div>
+        </header>
+        
+        <div class="profile-header">
+            <div class="profile-pic-container">
+                <div class="profile-pic">JD</div>
+                <div class="camera-icon" id="changePhotoBtn">
+                    <i class="fas fa-camera"></i>
+                </div>
+            </div>
+            <div class="profile-name">John Doe</div>
+            <div class="profile-status">
+                <div class="status-indicator"></div>
+                Online
+            </div>
+            
+            <div class="profile-actions">
+                <button class="action-btn" id="messageBtn">
+                    <i class="fas fa-comment"></i> Message
+                </button>
+                <button class="action-btn" id="callBtn">
+                    <i class="fas fa-phone"></i> Call
+                </button>
+                <button class="action-btn" id="videoBtn">
+                    <i class="fas fa-video"></i> Video
+                </button>
+                <button class="action-btn" id="editProfileBtn">
+                    <i class="fas fa-user-edit"></i> Edit Profile
+                </button>
+            </div>
+        </div>
+        
+        <div class="profile-details">
+            <div class="details-section">
+                <div class="section-title">
+                    <i class="fas fa-info-circle"></i> About
+                </div>
+                <div class="detail-item">
+                    <div class="detail-icon">
+                        <i class="fas fa-quote-left"></i>
+                    </div>
+                    <div class="detail-content">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value">Enjoying life and coding!</div>
+                    </div>
+                    <div class="detail-action" id="editStatusBtn">Edit</div>
+                </div>
+            </div>
+            
+            <div class="details-section">
+                <div class="section-title">
+                    <i class="fas fa-user"></i> Personal Information
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-label">Phone</div>
+                            <div class="detail-value">+1 (234) 567-8901</div>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value">john.doe@example.com</div>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-icon">
+                            <i class="fas fa-birthday-cake"></i>
+                        </div>
+                        <div class="detail-content">
+                            <div class="detail-label">Birthday</div>
+                            <div class="detail-value">January 15, 1990</div>
+                        </div>
+                        <div class="detail-action" id="editBirthdayBtn">Edit</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="details-section">
+                <div class="section-title">
+                    <i class="fas fa-image"></i> Media (36)
+                </div>
+                <div class="media-grid">
+                    <div class="media-item">IMG_001.jpg</div>
+                    <div class="media-item">IMG_002.jpg</div>
+                    <div class="media-item">IMG_003.jpg</div>
+                    <div class="media-item">IMG_004.jpg</div>
+                    <div class="media-item">IMG_005.jpg</div>
+                    <div class="media-item">+30 more</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Context Menu -->
+        <div class="context-menu" id="contextMenu">
+            <div class="menu-item" id="searchChatBtn">
+                <i class="fas fa-search"></i> Search in Chat
+            </div>
+            <div class="menu-item" id="viewContactBtn">
+                <i class="fas fa-address-card"></i> View Contact
+            </div>
+            <div class="menu-item" id="muteNotificationsBtn">
+                <i class="fas fa-bell-slash"></i> Mute Notifications
+            </div>
+            <div class="menu-item" id="blockUserBtn">
+                <i class="fas fa-ban"></i> Block User
+            </div>
+            <div class="menu-item" id="reportUserBtn">
+                <i class="fas fa-flag"></i> Report User
+            </div>
+        </div>
+        
+        <!-- Edit Status Modal -->
+        <div class="modal" id="statusModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Edit Status</div>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="statusInput">Your Status</label>
+                        <textarea id="statusInput" class="form-control" rows="3">Enjoying life and coding!</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-modal">Cancel</button>
+                    <button class="btn btn-primary" id="saveStatusBtn">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Birthday Modal -->
+        <div class="modal" id="birthdayModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Edit Birthday</div>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="birthdayInput">Birthday</label>
+                        <input type="date" id="birthdayInput" class="form-control" value="1990-01-15">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-modal">Cancel</button>
+                    <button class="btn btn-primary" id="saveBirthdayBtn">Save</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Change Photo Modal -->
+        <div class="modal" id="photoModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Change Profile Photo</div>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="text-align: center; padding: 20px 0;">
+                        <div class="profile-pic" style="margin: 0 auto 20px;">JD</div>
+                        <p>Upload a new profile picture</p>
+                    </div>
+                    <div class="form-group">
+                        <input type="file" id="photoInput" class="form-control" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary close-modal">Cancel</button>
+                    <button class="btn btn-primary" id="savePhotoBtn">Upload</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const backBtn = document.getElementById('backBtn');
+        const menuBtn = document.getElementById('menuBtn');
+        const contextMenu = document.getElementById('contextMenu');
+        const changePhotoBtn = document.getElementById('changePhotoBtn');
+        const editStatusBtn = document.getElementById('editStatusBtn');
+        const editBirthdayBtn = document.getElementById('editBirthdayBtn');
+        const messageBtn = document.getElementById('messageBtn');
+        const callBtn = document.getElementById('callBtn');
+        const videoBtn = document.getElementById('videoBtn');
+        
+        // Modals
+        const statusModal = document.getElementById('statusModal');
+        const birthdayModal = document.getElementById('birthdayModal');
+        const photoModal = document.getElementById('photoModal');
+        const closeButtons = document.querySelectorAll('.close-modal');
+        
+        // Back button functionality
+        backBtn.addEventListener('click', function() {
+            alert('Navigating back...');
+            // In a real app, this would navigate back in history or to previous page
+        });
+        
+        // Menu button functionality
+        menuBtn.addEventListener('click', function() {
+            contextMenu.classList.toggle('active');
+        });
+        
+        // Close context menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!menuBtn.contains(e.target) && !contextMenu.contains(e.target)) {
+                contextMenu.classList.remove('active');
+            }
+        });
+        
+        // Action buttons
+        messageBtn.addEventListener('click', function() {
+            alert('Opening chat with John Doe...');
+        });
+        
+        callBtn.addEventListener('click', function() {
+            alert('Calling John Doe...');
+        });
+        
+        videoBtn.addEventListener('click', function() {
+            alert('Starting video call with John Doe...');
+        });
+        
+        // Open modals
+        changePhotoBtn.addEventListener('click', function() {
+            photoModal.style.display = 'flex';
+        });
+        
+        editStatusBtn.addEventListener('click', function() {
+            statusModal.style.display = 'flex';
+        });
+        
+        editBirthdayBtn.addEventListener('click', function() {
+            birthdayModal.style.display = 'flex';
+        });
+        
+        // Close modals
+        closeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                this.closest('.modal').style.display = 'none';
+            });
+        });
+        
+        // Close modal when clicking outside
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.style.display = 'none';
+                }
+            });
+        });
+
+        // Shared avatar storage key
+        const AVATAR_KEY = 'p2p_profile_avatar';
+
+        // Photo upload handling (Change Photo modal)
+        const photoInput = document.getElementById('photoInput');
+        const savePhotoBtn = document.getElementById('savePhotoBtn');
+        savePhotoBtn.addEventListener('click', function() {
+            if (photoInput.files && photoInput.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    const dataUrl = ev.target.result;
+                    // Update profile pic display
+                    const pic = document.querySelector('.profile-pic');
+                    if (pic) pic.innerHTML = `<img src="${dataUrl}" alt="Profile">`;
+
+                    // Save to shared storage
+                    try {
+                        localStorage.setItem(AVATAR_KEY, dataUrl);
+                        // apply immediately in this window
+                        window.dispatchEvent(new Event('storage'));
+                    } catch (err) {
+                        console.error('Failed to save avatar:', err);
+                    }
+
+                    photoModal.style.display = 'none';
+                };
+                reader.readAsDataURL(photoInput.files[0]);
+            } else {
+                alert('Please choose a photo first.');
+            }
+        });
+
+        // Apply shared avatar to UI
+        function applySharedAvatarToProfile(dataUrl) {
+            const pic = document.querySelector('.profile-pic');
+            if (pic) pic.innerHTML = `<img src="${dataUrl}" alt="Profile">`;
+        }
+
+        // Load avatar from storage on load
+        window.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem(AVATAR_KEY);
+            if (saved) applySharedAvatarToProfile(saved);
+        });
+
+        // Listen for storage updates
+        window.addEventListener('storage', (e) => {
+            if (e.key === AVATAR_KEY) {
+                applySharedAvatarToProfile(e.newValue);
+            }
+        });
+        
+        // Save status
+        document.getElementById('saveStatusBtn').addEventListener('click', function() {
+            const newStatus = document.getElementById('statusInput').value;
+            document.querySelector('.detail-value').textContent = newStatus;
+            statusModal.style.display = 'none';
+            alert('Status updated successfully!');
+        });
+        
+        // Save birthday
+        document.getElementById('saveBirthdayBtn').addEventListener('click', function() {
+            const newBirthday = document.getElementById('birthdayInput').value;
+            const formattedDate = new Date(newBirthday).toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            
+            // Find the birthday element and update it
+            const birthdayItems = document.querySelectorAll('.detail-item');
+            birthdayItems.forEach(item => {
+                if (item.querySelector('.detail-label').textContent === 'Birthday') {
+                    item.querySelector('.detail-value').textContent = formattedDate;
+                }
+            });
+            
+            birthdayModal.style.display = 'none';
+            alert('Birthday updated successfully!');
+        });
+        
+        // Context menu items
+        document.getElementById('searchChatBtn').addEventListener('click', function() {
+            alert('Searching in chat...');
+            contextMenu.classList.remove('active');
+        });
+        
+        document.getElementById('viewContactBtn').addEventListener('click', function() {
+            alert('Viewing contact details...');
+            contextMenu.classList.remove('active');
+        });
+        
+        document.getElementById('muteNotificationsBtn').addEventListener('click', function() {
+            alert('Notifications muted for this user');
+            contextMenu.classList.remove('active');
+        });
+        
+        document.getElementById('blockUserBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to block this user?')) {
+                alert('User has been blocked');
+            }
+            contextMenu.classList.remove('active');
+        });
+        
+        document.getElementById('reportUserBtn').addEventListener('click', function() {
+            alert('Opening report user form...');
+            contextMenu.classList.remove('active');
+        });
+
+                // top logout handler
+                (function(){
+                    const lg = document.getElementById('logoutLinkTop');
+                    if(lg) lg.addEventListener('click', function(e){ e.preventDefault(); try{ sessionStorage.clear(); }catch(err){} window.location.href='index.html'; });
+                })();
+    </script>
+</body>
+</html>
