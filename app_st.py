@@ -294,5 +294,5 @@ def health_check():
 
 
 if __name__ == '__main__':
-    print("Starting P2P Settings API on port 8000...")
-    app.run(debug=True, port=8000, host='0.0.0.0')
+    print("Starting ok P2P Settings API on port 8001...")
+    app.run(debug=True, port=8001, host='0.0.0.0')

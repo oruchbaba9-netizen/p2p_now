@@ -11,7 +11,7 @@
     * {
         font-family: 'Poppins', sans-serif;
     }
-    
+
     /* Utility classes for the gallery */
     .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
     .font-semibold { font-weight: 600; }
@@ -49,20 +49,20 @@
     .opacity-0 { opacity: 0; }
     .group-hover\:opacity-100:group-hover { opacity: 1; }
     .duration-300 { transition-duration: 300ms; }
-    
+
     /* Form styles */
     .hidden { display: none; }
-    .success-message { 
-      color: green; 
-      margin-top: 10px; 
+    .success-message {
+      color: green;
+      margin-top: 10px;
       padding: 10px;
       background: #f0fff0;
       border: 1px solid green;
       border-radius: 4px;
     }
-    .error-message { 
-      color: red; 
-      margin-top: 10px; 
+    .error-message {
+      color: red;
+      margin-top: 10px;
       padding: 10px;
       background: #fff0f0;
       border: 1px solid red;
@@ -137,6 +137,9 @@
   display: inline-block;
 }
     }
+    /* Hide auth-only links until user logs in */
+    .auth-only { display: none; }
+    .auth-visible .auth-only { display: inline-block; }
   </style>
 </head>
 <body class="with-bg">
@@ -145,14 +148,14 @@
       <img src="logo.png" alt="P2P Chat Logo" class="logo">
       <nav>
         <a href="index.html">Home</a>
-        <a href="tp.html">Dashboard</a>
-        <a href="profile.html">Profile</a>
-        <a href="setting.html">Settings</a>
-        <a href="#" id="logoutLink">Logout</a>
+        <a href="tp.html" class="auth-only">Dashboard</a>
+        <a href="profile.html" class="auth-only">Profile</a>
+        <a href="setting.html" class="auth-only">Settings</a>
+        <a href="#" id="logoutLink" class="auth-only">Logout</a>
       </nav>
     </div>
   </header>
-  
+
   <!-- Animated background layers -->
   <div class="bg-visual">
     <div class="blob b1"></div>
@@ -294,7 +297,7 @@
           </div>
       </div>
   </div>
-  
+
   <section class="inspired">
     <h2>Inspired Words</h2>
     <div class="inspired-words">
@@ -349,7 +352,8 @@
   </footer>
 <script>
 // API configuration
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://192.168.137.79:5000/api';
+
 
 // DOM Elements
 const signupForm = document.getElementById('signupForm');
@@ -396,30 +400,47 @@ showSignupLink.addEventListener('click', (e) => {
 
 // Signup functionality
 async function handleSignup(formData, messageElement) {
+  try {
+    console.log('🔁 Sending signup request', formData);
+    const response = await fetch(`${API_BASE}/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+
+    console.log('📥 Raw response', response);
+
+    let data = null;
     try {
-        const response = await fetch(`${API_BASE}/signup`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showMessage(messageElement, data.message, 'success');
-            setTimeout(() => {
-                signupFormDiv.classList.add('hidden');
-                loginFormDiv.classList.remove('hidden');
-                signupModal.style.display = 'none';
-            }, 2000);
-        } else {
-            showMessage(messageElement, data.message, 'error');
-        }
-    } catch (error) {
-        showMessage(messageElement, 'Network error. Please try again.', 'error');
+      data = await response.json();
+    } catch (jsonErr) {
+      console.error('⚠️ Failed to parse JSON from signup response', jsonErr);
+      showMessage(messageElement, `Server returned invalid response (status ${response.status})`, 'error');
+      return;
     }
+
+    console.log('📦 Signup response JSON', data);
+
+    // Prefer explicit success flag when available, otherwise treat 2xx as success
+    const ok = (typeof data.success !== 'undefined') ? data.success : response.ok;
+
+    if (ok) {
+      showMessage(messageElement, data.message || 'Registration successful', 'success');
+      setTimeout(() => {
+        signupFormDiv.classList.add('hidden');
+        loginFormDiv.classList.remove('hidden');
+        if (signupModal) signupModal.style.display = 'none';
+      }, 1500);
+    } else {
+      const msg = data && data.message ? data.message : `Signup failed (status ${response.status})`;
+      showMessage(messageElement, msg, 'error');
+    }
+  } catch (error) {
+    console.error('⛔ Network or JS error during signup', error);
+    showMessage(messageElement, 'Network error. Please try again.', 'error');
+  }
 }
 
 // Login functionality
@@ -450,15 +471,19 @@ async function handleLogin(formData) {
                 }
             };
 
-            localStorage.setItem('currentUser', JSON.stringify(userData));
-            localStorage.setItem('isLoggedIn', 'true');
-            localStorage.setItem('loginTime', new Date().toISOString());
+            sessionStorage.setItem('currentUser', JSON.stringify(userData));
+            sessionStorage.setItem('isLoggedIn', 'true');
+            sessionStorage.setItem('loginTime', new Date().toISOString());
 
             console.log('✅ Login successful, user data stored:', userData);
 
+            // Update nav so auth-only links become visible immediately
+            const topNav = document.querySelector('.top-nav');
+            if (topNav) topNav.classList.add('auth-visible');
+
             // Redirect to tp.html (chat interface)
             setTimeout(() => {
-                window.location.href = 'tp.html';
+              window.location.href = 'tp.html';
             }, 1000);
 
         } else {
@@ -516,8 +541,25 @@ if (loginForm) {
 
 // Logout functionality
 function handleLogout() {
-    localStorage.removeItem('currentUser');
-    window.location.href = 'index.html';
+  // Clear client-side session
+  sessionStorage.removeItem('currentUser');
+  sessionStorage.removeItem('isLoggedIn');
+  sessionStorage.removeItem('loginTime');
+
+  // Update nav visibility
+  const topNav = document.querySelector('.top-nav');
+  if (topNav) topNav.classList.remove('auth-visible');
+
+  // Attempt to clear server-side session (best-effort)
+  try {
+    fetch('http://10.145.81.112:5000/logout', { method: 'GET', credentials: 'include' });
+
+    //fetch('/logout', { method: 'GET', credentials: 'include' });
+  } catch (e) {
+    // ignore
+  }
+
+  window.location.href = 'index.html';
 }
 
 if (logoutBtn) {
@@ -533,7 +575,7 @@ if (logoutLink) {
 
 // Check if user is already logged in
 function checkAuthStatus() {
-    const currentUser = localStorage.getItem('currentUser');
+    const currentUser = sessionStorage.getItem('currentUser');
     if (currentUser && welcomePage) {
         const user = JSON.parse(currentUser);
         document.getElementById('welcome-msg').textContent = `Welcome back, ${user.username}!`;
@@ -541,6 +583,13 @@ function checkAuthStatus() {
         loginFormDiv.classList.add('hidden');
         welcomePage.classList.remove('hidden');
     }
+  // Update nav visibility for authenticated users
+  const topNav = document.querySelector('.top-nav');
+  if (sessionStorage.getItem('isLoggedIn') === 'true') {
+    if (topNav) topNav.classList.add('auth-visible');
+  } else {
+    if (topNav) topNav.classList.remove('auth-visible');
+  }
 }
 
 // Initialize auth check
