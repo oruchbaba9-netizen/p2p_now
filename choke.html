@@ -1,0 +1,2506 @@
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Chat — Distributed Messaging</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="chating.css">
+    
+    <style>
+        /* Additional styles for call and file features */
+        .file-preview {
+            background: var(--panel-bg, rgba(255, 255, 255, 0.9));
+            border-radius: 10px;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid var(--panel-border, rgba(0,0,0,0.06));
+        }
+
+        .file-preview img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 5px;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+        }
+
+        .file-icon {
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: var(--gray);
+        }
+
+        .download-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .call-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .call-container.active {
+            display: flex;
+        }
+
+        .video-container {
+            width: 90%;
+            max-width: 800px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .video-box {
+            background: #2c3e50;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 4/3;
+        }
+
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-label {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        .call-controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .call-control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .call-accept {
+            background: var(--success);
+            color: white;
+        }
+
+        .call-reject {
+            background: var(--danger);
+            color: white;
+        }
+
+        .call-end {
+            background: var(--danger);
+            color: white;
+        }
+
+        .call-mute {
+            background: var(--warning);
+            color: white;
+        }
+
+        .call-video {
+            background: var(--primary);
+            color: white;
+        }
+
+        .call-control-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .incoming-call-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel-bg, rgba(255,255,255,0.95));
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 4000;
+            text-align: center;
+            display: none;
+        }
+
+        .incoming-call-alert.active {
+            display: block;
+        }
+
+        .caller-info {
+            margin-bottom: 20px;
+        }
+
+        .caller-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+        }
+
+        .file-progress {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .file-progress-bar {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+                /* Hide the inline msg-actions by default to avoid clutter.
+                    Show actions on message hover or when the options menu is open. */
+                .msg-actions { display: none; }
+                /* Show action buttons on hover for any message (incoming or outgoing) */
+                .message:hover .msg-actions { display: inline-block; }
+            .msg-menu { z-index: 2000; }
+                .msg-status { margin-left: 8px; font-size: 12px; color: var(--gray); }
+                .msg-status.pending::after { content: '\u23F3'; /* hourglass */ }
+                .msg-status.delivered::after { content: '\u2713'; /* single check */ }
+                .msg-status.seen::after { content: '\u2713\u2713'; color: var(--primary); /* double check */ }
+    </style>
+</head>
+<body>
+    <div class="top-nav-bar" id="topNav">
+        <nav>
+            <a href="indexx.html">Home</a>
+            <a href="tp.html" class="active">Dashboard</a>
+            <a href="profile.html">Profile</a>
+            <a href="setting.html">Settings</a>
+            <a href="#" id="logoutLink">Logout</a>
+        </nav>
+    </div>
+
+    <div id="app">
+        <!-- Sidebar / Contacts -->
+        <aside id="sidebar">
+            <header class="sidebar-header">
+                <div class="profile-mini" id="profileMini" title="Edit profile">
+                    <img id="profile-avatar" src="https://i.pravatar.cc/150?img=12" alt="You">
+                    <div>
+                        <div id="profile-name" class="name">Guest</div>
+                        <div id="profile-status" class="status">Online</div>
+                    </div>
+                </div>
+                <button id="new-chat" title="New chat">+</button>
+            </header>
+
+            <div class="search-wrap">
+                <input id="search" placeholder="Search contacts" aria-label="Search contacts">
+            </div>
+
+            <div class="chat-options">
+                <button id="discover-peers" class="btn primary" style="width: 100%; margin: 10px 0; padding: 10px;">
+                    <i class="fas fa-search"></i> Discover Peers via DHT
+                </button>
+                <button id="create-group" class="btn" style="width: 100%; margin-bottom: 10px; padding: 10px;">
+                    <i class="fas fa-users"></i> Create Group Chat
+                </button>
+                <!-- Create Group Modal trigger inserted above; modal markup follows -->
+                <div id="createGroupModal" class="modal" style="display:none;align-items:center;justify-content:center;">
+                    <div class="modal-content" style="max-width:520px;">
+                        <div class="modal-header">
+                            <div class="modal-title">Create Group</div>
+                            <button class="close-modal" id="createGroupClose">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="groupName">Group name</label>
+                                <input id="groupName" class="form-control" placeholder="Group name (required)">
+                            </div>
+                            <div class="form-group">
+                                <label>Select participants</label>
+                                <div id="create-group-peers" style="max-height:280px;overflow:auto;padding:8px;border:1px solid #eee;border-radius:6px;background:#fff"></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" id="createGroupCancel">Cancel</button>
+                            <button class="btn btn-primary" id="createGroupSubmit">Create Group</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <ul id="peer-list" class="contacts">
+                <!-- Peers will be loaded dynamically -->
+            </ul>
+        </aside>
+
+        <!-- Main chat area -->
+        <main id="main">
+            <section id="empty-view">
+                <div class="welcome">
+                    <h1>Welcome to P2P Chat</h1>
+                    <p>Select a contact to start chatting — Distributed P2P messaging with real backend integration.</p>
+                    <div style="margin-top: 20px; text-align: left;">
+                        <h3>Real-time Features:</h3>
+                        <ul style="text-align: left; display: inline-block;">
+                            <li>✅ Real User Authentication</li>
+                            <li>✅ WebSocket Backend Connection</li>
+                            <li>✅ Live Peer Discovery</li>
+                            <li>✅ Instant Messaging</li>
+                            <li>✅ User Profile Integration</li>
+                            <li>✅ Video & Audio Calls</li>
+                            <li>✅ File Sharing</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="chat-page" class="hidden">
+                <header id="chat-header">
+                    <button id="back-btn">⟵</button>
+                    <div class="chat-info">
+                        <img id="chat-avatar" src="https://i.pravatar.cc/150?img=1" alt="avatar">
+                        <div>
+                            <div id="chat-with">Select a peer <span id="group-indicator" class="group-indicator hidden">Group</span></div>
+                            <div id="chat-presence" class="small">Offline</div>
+                        </div>
+                    </div>
+                    <div id="chat-actions">
+                        <button id="audio-call-btn"><i class="fas fa-phone"></i></button>
+                        <button id="video-call-btn"><i class="fas fa-video"></i></button>
+                        <input type="file" id="file-input" style="display:none;" multiple>
+                        <button id="file-btn"><i class="fas fa-paperclip"></i></button>
+                        <button id="group-info-btn" class="hidden"><i class="fas fa-info-circle"></i></button>
+                    </div>
+                </header>
+
+                <div id="chat-messages" aria-live="polite">
+                    <!-- Messages will be loaded here -->
+                </div>
+
+                <div id="chat-input-area">
+                    <button id="emoji-btn"><i class="far fa-smile"></i></button>
+                    <input type="text" id="message" placeholder="Type a message" autocomplete="off">
+                    <button id="send-btn">Send</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- In-page profile slide-over panel (IMO-style) -->
+    <div id="profilePanel" class="profile-panel hidden" aria-hidden="true">
+        <div class="panel-backdrop" id="panelBackdrop"></div>
+        <aside class="panel">
+            <header class="panel-header">
+                <div class="panel-title">Profile</div>
+                <button id="panelClose" class="btn">✕</button>
+            </header>
+
+            <div class="panel-body">
+                <div class="panel-avatar"><img id="panelAvatar" src="https://i.pravatar.cc/150?img=12" alt="avatar"></div>
+                <div class="panel-info">
+                    <div id="panelName" class="panel-name">Guest User</div>
+                    <div id="panelStatus" class="panel-status">Online</div>
+                    <div class="panel-meta">
+                        <div><strong>DID:</strong> <span id="panelDID">Not available</span></div>
+                        <div><strong>User ID:</strong> <span id="panelUserID">Not available</span></div>
+                        <div><strong>Node ID:</strong> <span id="panelNodeID">Not available</span></div>
+                    </div>
+                </div>
+
+                <div class="panel-actions">
+                    <button id="panelEdit" class="btn primary">Edit Profile</button>
+                    <button id="panelLogout" class="btn">Log out</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Call Interface -->
+    <div id="callContainer" class="call-container">
+        <div class="video-container">
+            <div class="video-box">
+                <video id="localVideo" autoplay muted></video>
+                <div class="video-label">You</div>
+            </div>
+            <div class="video-box">
+                <video id="remoteVideo" autoplay></video>
+                <div class="video-label" id="remoteUserLabel">Remote User</div>
+            </div>
+        </div>
+        <div class="call-controls">
+            <button id="muteBtn" class="call-control-btn call-mute">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button id="videoBtn" class="call-control-btn call-video">
+                <i class="fas fa-video"></i>
+            </button>
+            <button id="endCallBtn" class="call-control-btn call-end">
+                <i class="fas fa-phone-slash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Incoming Call Alert -->
+    <div id="incomingCallAlert" class="incoming-call-alert">
+        <div class="caller-info">
+            <img id="callerAvatar" src="" alt="Caller" class="caller-avatar">
+            <h3 id="callerName">Incoming Call</h3>
+            <p id="callType">Audio Call</p>
+        </div>
+        <div class="call-actions">
+            <button id="acceptCallBtn" class="call-control-btn call-accept">
+                <i class="fas fa-phone"></i>
+            </button>
+            <button id="rejectCallBtn" class="call-control-btn call-reject">
+                <i class="fas fa-phone-slash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- DHT Status Indicator -->
+    <div class="dht-status">
+        <div class="dht-indicator"></div>
+        <span id="dht-status-text">Connecting to Backend...</span>
+    </div> <script> // Configuration - Point to your Python backend server
+const WS_URL = 'ws://localhost:8766';
+const API_URL = 'http://localhost:5000/api';
+//const WS_URL = 'ws://192.168.137.79:8766';
+//const API_URL = 'http://192.168.137.79:5000/api';
+
+
+
+// Global state
+let currentUser = null;
+let currentPeer = null;
+let currentGroup = null;
+let wsConnection = null;
+let peers = [];
+let groups = [];
+let messageHistory = {};
+let localStream = null;
+let remoteStream = null;
+let peerConnection = null;
+let isInCall = false;
+let isCaller = false;
+
+// DOM Elements
+const chatPage = document.getElementById('chat-page');
+const emptyView = document.getElementById('empty-view');
+const peerList = document.getElementById('peer-list');
+const chatWith = document.getElementById('chat-with');
+const chatAvatar = document.getElementById('chat-avatar');
+const chatPresence = document.getElementById('chat-presence');
+const chatMessages = document.getElementById('chat-messages');
+const messageInput = document.getElementById('message');
+const sendBtn = document.getElementById('send-btn');
+const dhtStatusText = document.getElementById('dht-status-text');
+
+// Call elements
+const callContainer = document.getElementById('callContainer');
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const remoteUserLabel = document.getElementById('remoteUserLabel');
+const muteBtn = document.getElementById('muteBtn');
+const videoBtn = document.getElementById('videoBtn');
+const endCallBtn = document.getElementById('endCallBtn');
+const incomingCallAlert = document.getElementById('incomingCallAlert');
+const callerAvatar = document.getElementById('callerAvatar');
+const callerName = document.getElementById('callerName');
+const callType = document.getElementById('callType');
+const acceptCallBtn = document.getElementById('acceptCallBtn');
+const rejectCallBtn = document.getElementById('rejectCallBtn');
+
+// File elements
+const fileInput = document.getElementById('file-input');
+const fileBtn = document.getElementById('file-btn');
+
+// SIMPLIFIED AUTHENTICATION - More flexible
+function checkAuthentication() {
+    console.log('🔐 Checking authentication...');
+
+    const currentUserStr = sessionStorage.getItem('currentUser');
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+
+    console.log('  - currentUser exists:', !!currentUserStr);
+    console.log('  - isLoggedIn:', isLoggedIn);
+
+    // If we have user data, proceed (even if isLoggedIn is missing or different format)
+    if (currentUserStr) {
+        try {
+            const userData = JSON.parse(currentUserStr);
+            if (userData && userData.username) {
+                console.log('✅ AUTH SUCCESS: User found -', userData.username);
+
+                // Ensure isLoggedIn is set for future checks
+                if (!isLoggedIn) {
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                }
+
+                return true;
+            }
+        } catch (error) {
+            console.log('❌ Failed to parse user data:', error);
+        }
+    }
+
+    // If we get here, no valid user data found
+    console.log('❌ AUTH FAILED: No valid user data found');
+    showNotification('Please login first', 'error');
+    // Do not force redirect immediately — allow user to see message and for devs to inspect console.
+    // Caller should handle the false return and stop initialization.
+    return false;
+}
+
+// Apply shared avatar image to dashboard UI (profile mini, panel avatar)
+function applySharedAvatarToDashboard(dataUrl) {
+    try {
+        // panel avatar (img)
+        const panelAvatar = document.getElementById('panelAvatar');
+        if (panelAvatar && dataUrl) panelAvatar.src = dataUrl;
+
+        // profile mini (may be a div) - try to set image or background
+        const profileMini = document.getElementById('profileMini');
+        if (profileMini) {
+            if (profileMini.tagName === 'IMG') {
+                profileMini.src = dataUrl;
+            } else {
+                profileMini.innerHTML = `<img src="${dataUrl}" alt="avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            }
+        }
+
+        // small header/avatar used in the chat header if exists
+        const myAvatar = document.getElementById('myAvatar');
+        if (myAvatar) {
+            if (myAvatar.tagName === 'IMG') myAvatar.src = dataUrl;
+            else myAvatar.style.backgroundImage = `url(${dataUrl})`;
+        }
+    } catch (err) {
+        console.warn('Failed to apply shared avatar to dashboard:', err);
+    }
+}
+
+// MAIN INITIALIZATION
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 P2P Chat Dashboard initializing...');
+    initializeDashboard();
+});
+
+function initializeDashboard() {
+    // Load logged-in user first (handle gracefully if missing)
+    try {
+        loadLoggedInUser();
+    } catch (err) {
+        console.error('Initialization stopped: no logged in user', err);
+        // Redirect to index after short delay so user sees notification
+        setTimeout(() => { window.location.href = 'index.html'; }, 1200);
+        return;
+    }
+
+    // Then initialize the rest
+    addEventListeners();
+    initializeWebSocket();
+    loadUsersFromAPI(); // Load real users from your Flask backend
+    // Load persisted groups (if any)
+    try { loadGroupsFromStorage(); } catch(e) { console.warn('Failed to load groups from storage', e); }
+    // Load theme settings saved by settings page
+    try {
+        loadThemeFromLocalStorage();
+    } catch (err) { console.warn('Error loading theme from storage', err); }
+
+    console.log('✅ Dashboard fully initialized for:', currentUser && currentUser.username);
+}
+
+function loadLoggedInUser() {
+    const userDataStr = sessionStorage.getItem('currentUser');
+
+    if (!userDataStr) {
+        console.error('❌ No user data found in loadLoggedInUser');
+        // Don't force redirect; stop initialization gracefully.
+        throw new Error('No user session');
+    }
+
+    try {
+        currentUser = JSON.parse(userDataStr);
+        console.log('✅ User loaded from localStorage:', currentUser.username);
+
+        // Ensure all required fields exist with proper fallbacks
+        if (!currentUser.user_id) {
+            currentUser.user_id = currentUser.id || 'user_' + Date.now();
+        }
+        if (!currentUser.profile_data) {
+            currentUser.profile_data = {
+                avatar: `https://i.pravatar.cc/150?u=${currentUser.username}`
+            };
+        }
+        if (!currentUser.id) {
+            currentUser.id = currentUser.user_id;
+        }
+
+        // Fill profile information
+        fillUserProfile(currentUser);
+
+    } catch (error) {
+        console.error('❌ Failed to parse user data:', error);
+        showNotification('Session expired. Please login again.', 'error');
+        // Stop initialization; caller will handle redirection if needed.
+        throw error;
+    }
+}
+
+function fillUserProfile(user) {
+    console.log('🎯 Filling profile for:', user.username);
+
+    const elementsToUpdate = {
+        'profile-name': user.username,
+        'panelName': user.username,
+        // Prefer avatar saved in localStorage (set from profile.html) over generated avatar
+        'profile-avatar': localStorage.getItem('p2p_profile_avatar') || user.profile_data?.avatar || 'https://i.pravatar.cc/150?u=' + user.username,
+        'panelAvatar': localStorage.getItem('p2p_profile_avatar') || user.profile_data?.avatar || 'https://i.pravatar.cc/150?u=' + user.username,
+        'panelUserID': user.id || user.user_id,
+        'panelNodeID': user.node_id || 'node_' + (user.id || user.user_id),
+        'panelDID': user.did || 'did:p2p:' + (user.id || user.user_id)
+    };
+
+    for (const [elementId, value] of Object.entries(elementsToUpdate)) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            if (elementId.includes('avatar')) {
+                element.src = value;
+            } else {
+                element.textContent = value;
+            }
+        }
+    }
+}
+
+// Profile update listener for tp.html
+function initializeProfileSync() {
+    // Load initial profile data
+    loadProfileData();
+    // Load profile picture/avatar if available
+    loadProfilePicture();
+
+    // Listen for storage events (updates from other tabs)
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'userProfile' || e.key === 'profileUpdated') {
+            loadProfileData();
+        }
+        if (e.key === 'userProfilePicture' || e.key === 'profilePictureUpdated' || e.key === 'p2p_profile_avatar') {
+            loadProfilePicture();
+        }
+    });
+
+    // Also listen for same-tab updates
+    window.addEventListener('profileUpdated', function() {
+        loadProfileData();
+    });
+}
+
+// Function to load profile data in dashboard
+function loadProfileData() {
+    const profileData = localStorage.getItem('userProfile');
+    if (profileData) {
+        const profile = JSON.parse(profileData);
+
+        // Update profile elements in tp.html
+        const profileNameElement = document.querySelector('.profile-name, [data-profile="name"]');
+        const profileStatusElement = document.querySelector('.profile-status, [data-profile="status"]');
+
+        if (profileNameElement) {
+            profileNameElement.textContent = profile.name;
+        }
+
+        if (profileStatusElement) {
+            profileStatusElement.textContent = profile.status;
+        }
+
+        // Update any other profile-related elements
+        updateDashboardProfile(profile);
+    }
+}
+
+// Function to load profile picture in dashboard
+function loadProfilePicture() {
+    // Support both legacy key and the app-wide avatar key used by profile.html
+    const profilePicture = localStorage.getItem('userProfilePicture') || localStorage.getItem('p2p_profile_avatar');
+    if (profilePicture) {
+        const profilePicElement = document.querySelector('.profile-pic, [data-profile="picture"]');
+        if (profilePicElement) {
+            profilePicElement.innerHTML = `<img src="${profilePicture}" alt="Profile Picture" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        }
+        // Apply to dashboard-specific avatar slots
+        applySharedAvatarToDashboard(profilePicture);
+    }
+}
+
+// Function to update dashboard-specific profile elements
+function updateDashboardProfile(profile) {
+    // Add any dashboard-specific profile updates here
+    // For example, update chat headers, user info panels, etc.
+
+    // Example: Update user info in chat headers
+    const chatHeaders = document.querySelectorAll('.chat-header .user-name');
+    chatHeaders.forEach(header => {
+        header.textContent = profile.name;
+    });
+
+    // Example: Update status in user info panels
+    const statusIndicators = document.querySelectorAll('.status-indicator');
+    statusIndicators.forEach(indicator => {
+        indicator.textContent = profile.status;
+        indicator.className = `status-indicator ${profile.status.toLowerCase()}`;
+    });
+}
+
+// Initialize profile sync when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeProfileSync();
+});
+
+// Load and apply theme from localStorage (applies site-wide visual theme)
+function loadThemeFromLocalStorage() {
+    try {
+        const savedTheme = localStorage.getItem('app_theme');
+        const wallpaperColor = localStorage.getItem('wallpaper_color');
+        const homeBg = localStorage.getItem('home_bg_color');
+        const chatWallpaper = localStorage.getItem('chat_wallpaper');
+        if (savedTheme) {
+            // apply theme (applyTheme may be defined below)
+            if (typeof applyTheme === 'function') applyTheme(savedTheme);
+        }
+        // apply home background color if provided (keeps index color consistent across app)
+        if (homeBg) {
+            try { document.body.style.backgroundColor = homeBg; document.documentElement.style.setProperty('--home-bg', homeBg); } catch(e){}
+        }
+        if (wallpaperColor) {
+            // apply a lightweight wallpaper color to body/container if available
+            document.body.style.backgroundColor = wallpaperColor;
+            // set panel border to a translucent version of wallpaper color so panels blend
+            try {
+                // convert hex #rrggbb to rgba with 0.12 alpha if possible
+                const hex = wallpaperColor.trim();
+                if (/^#([0-9A-F]{3}){1,2}$/i.test(hex)) {
+                    const c = hex.substring(1);
+                    const bigint = parseInt(c.length===3? c.split('').map(ch=>ch+ch).join('') : c, 16);
+                    const r = (bigint >> 16) & 255;
+                    const g = (bigint >> 8) & 255;
+                    const b = bigint & 255;
+                    document.documentElement.style.setProperty('--panel-border', `rgba(${r},${g},${b},0.12)`);
+                    // panel background slightly translucent over wallpaper
+                    document.documentElement.style.setProperty('--panel-bg', `rgba(${255},255,255,0.82)`);
+                }
+            } catch (e) { /* ignore */ }
+        }
+        // (Optional) apply chat wallpaper via a CSS variable or class
+        if (chatWallpaper) {
+            document.documentElement.style.setProperty('--chat-wallpaper', `url(${chatWallpaper})`);
+            // also apply to main app container if present
+            const appEl = document.getElementById('app');
+            if (appEl) {
+                // prefer using backgroundImage for immediate effect
+                try { appEl.style.backgroundImage = `url(${chatWallpaper})`; appEl.style.backgroundSize = 'cover'; } catch (e) {}
+            }
+        }
+    } catch (err) {
+        console.warn('Failed to apply theme from localStorage', err);
+    }
+}
+
+// Apply theme across the dashboard; mirrors logic in other pages
+function applyTheme(theme) {
+    const body = document.body;
+    const appEl = document.getElementById('app');
+    body.classList.remove('light-theme', 'dark-theme', 'coffee-theme');
+    if (appEl) appEl.classList.remove('light-theme', 'dark-theme', 'coffee-theme');
+
+    if (theme === 'dark') {
+        body.classList.add('dark-theme');
+        body.style.background = '#1e1e1e';
+        body.style.color = '#fff';
+        if (appEl) { appEl.style.background = '#2d2d2d'; }
+    } else if (theme === 'coffee') {
+        body.classList.add('coffee-theme');
+        body.style.background = '#6f4e37';
+        body.style.color = '#f5f5f5';
+        if (appEl) { appEl.style.background = '#8b6b4f'; }
+    } else {
+        body.classList.add('light-theme');
+        body.style.background = '';
+        body.style.backgroundColor = '';
+        body.style.color = '';
+        if (appEl) { appEl.style.background = ''; }
+    }
+
+    // Ensure wallpaper color overrides general background where applicable
+    const wallpaperColor = localStorage.getItem('wallpaper_color');
+    if (wallpaperColor) {
+        try { body.style.backgroundColor = wallpaperColor; } catch (e) {}
+    }
+}
+
+// Listen for theme updates from settings page (other tabs)
+window.addEventListener('storage', function(e) {
+    if (!e) return;
+    if (e.key === 'themeUpdated' || e.key === 'app_theme' || e.key === 'wallpaper_color' || e.key === 'home_bg_color') {
+        loadThemeFromLocalStorage();
+    }
+});
+
+// Also apply theme when the page gains focus or becomes visible (handles same-tab navigation)
+window.addEventListener('focus', () => {
+    try { loadThemeFromLocalStorage(); } catch (err) { /* ignore */ }
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        try { loadThemeFromLocalStorage(); } catch (err) { /* ignore */ }
+    }
+});
+
+// WEB SOCKET FUNCTIONS - COMPATIBLE WITH YOUR FLASK BACKEND
+function initializeWebSocket() {
+    console.log('🔌 Initializing WebSocket connection to backend...');
+
+    try {
+        wsConnection = new WebSocket(WS_URL);
+
+        wsConnection.onopen = () => {
+            console.log('✅ WebSocket Connected to backend server:', WS_URL);
+            showNotification('Connected to P2P Chat network', 'success');
+            dhtStatusText.textContent = 'Connected to Backend';
+
+            if (currentUser) {
+                // Send registration message in the format your Flask backend expects
+                const registerMsg = {
+                    type: 'register',
+                    username: currentUser.username,
+                    user_id: currentUser.id || currentUser.user_id,
+                    profile_data: currentUser.profile_data
+                };
+                wsConnection.send(JSON.stringify(registerMsg));
+                // Flush queued outgoing messages/files saved locally
+                try {
+                    flushQueuedMessages();
+                } catch (err) {
+                    console.warn('Failed to flush queued messages on reconnect:', err);
+                }
+            }
+        };
+
+        wsConnection.onmessage = (event) => {
+            console.log('📥 Received WebSocket message from backend:', event.data);
+            try {
+                const data = JSON.parse(event.data);
+                handleRealMessage(data);
+            } catch (error) {
+                console.error('❌ Failed to parse WebSocket message:', error);
+            }
+        };
+
+        wsConnection.onclose = (event) => {
+            console.log('❌ WebSocket disconnected from backend:', event.code, event.reason);
+            showNotification('Disconnected from server - reconnecting...', 'error');
+            dhtStatusText.textContent = 'Reconnecting...';
+            setTimeout(() => initializeWebSocket(), 3000);
+        };
+
+        wsConnection.onerror = (error) => {
+            console.error('🔌 WebSocket connection error:', error);
+            showNotification('Connection error with backend server', 'error');
+            dhtStatusText.textContent = 'Connection Error';
+        };
+
+    } catch (error) {
+        console.error('❌ WebSocket connection failed:', error);
+        showNotification('Failed to connect to backend server', 'error');
+        dhtStatusText.textContent = 'Failed to Connect';
+    }
+}
+
+// CALL FUNCTIONALITY
+async function startVideoCall() {
+    if (!currentPeer) {
+        showNotification('Please select a contact to call', 'error');
+        return;
+    }
+
+    try {
+        showNotification('Starting video call...', 'info');
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+
+        localVideo.srcObject = localStream;
+        isCaller = true;
+        isInCall = true;
+
+        // Show call interface
+        callContainer.classList.add('active');
+        remoteUserLabel.textContent = currentPeer.username;
+
+        // Send call request via WebSocket
+        const callData = {
+            type: 'call_request',
+            call_type: 'video',
+            from: currentUser.username,
+            from_id: currentUser.id,
+            to: currentPeer.username,
+            to_id: currentPeer.user_id
+        };
+
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            wsConnection.send(JSON.stringify(callData));
+        }
+
+    } catch (error) {
+        console.error('Error starting video call:', error);
+        showNotification('Failed to access camera/microphone', 'error');
+    }
+}
+
+async function startAudioCall() {
+    if (!currentPeer) {
+        showNotification('Please select a contact to call', 'error');
+        return;
+    }
+
+    try {
+        showNotification('Starting audio call...', 'info');
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: true
+        });
+
+        localVideo.srcObject = localStream;
+        isCaller = true;
+        isInCall = true;
+
+        // Show call interface
+        callContainer.classList.add('active');
+        remoteUserLabel.textContent = currentPeer.username;
+
+        // Send call request via WebSocket
+        const callData = {
+            type: 'call_request',
+            call_type: 'audio',
+            from: currentUser.username,
+            from_id: currentUser.id,
+            to: currentPeer.username,
+            to_id: currentPeer.user_id
+        };
+
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            wsConnection.send(JSON.stringify(callData));
+        }
+
+    } catch (error) {
+        console.error('Error starting audio call:', error);
+        showNotification('Failed to access microphone', 'error');
+    }
+}
+
+function endCall() {
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
+    }
+
+    localVideo.srcObject = null;
+    remoteVideo.srcObject = null;
+
+    callContainer.classList.remove('active');
+    incomingCallAlert.classList.remove('active');
+    isInCall = false;
+    isCaller = false;
+
+    // Send call end notification
+    if (currentPeer && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        const callData = {
+            type: 'call_end',
+            from: currentUser.username,
+            from_id: currentUser.id,
+            to: currentPeer.username,
+            to_id: currentPeer.user_id
+        };
+        wsConnection.send(JSON.stringify(callData));
+    }
+
+    showNotification('Call ended', 'info');
+}
+
+function toggleMute() {
+    if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        muteBtn.innerHTML = audioTracks[0].enabled ?
+            '<i class="fas fa-microphone"></i>' :
+            '<i class="fas fa-microphone-slash"></i>';
+    }
+}
+
+function toggleVideo() {
+    if (localStream) {
+        const videoTracks = localStream.getVideoTracks();
+        videoTracks.forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        videoBtn.innerHTML = videoTracks[0].enabled ?
+            '<i class="fas fa-video"></i>' :
+            '<i class="fas fa-video-slash"></i>';
+    }
+}
+
+// FILE SHARING FUNCTIONALITY
+function handleFileSelect(event) {
+    const files = event.target.files;
+    if (!files.length) return;
+
+    Array.from(files).forEach(file => {
+        if (file.size > 50 * 1024 * 1024) { // 50MB limit
+            showNotification('File too large. Maximum size is 50MB', 'error');
+            return;
+        }
+
+        // Create file message
+        const fileMessage = {
+            id: 'file_' + Date.now(),
+            type: 'file',
+            file_name: file.name,
+            file_size: formatFileSize(file.size),
+            file_type: file.type,
+            timestamp: new Date().toISOString(),
+            is_outgoing: true,
+            sender_id: currentUser.id || currentUser.user_id,
+            sender_username: currentUser.username,
+            sent: false,
+            seen: false,
+            deleted_request: false
+        };
+
+        // Store in history
+        if (currentPeer) {
+            storeMessageInHistory(fileMessage, currentPeer.user_id);
+        }
+
+        // Add to UI
+        addFileMessageToUI(fileMessage, true);
+
+        // Send file via WebSocket
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            const fileData = {
+                type: 'file_message',
+                from: currentUser.username,
+                from_id: currentUser.id || currentUser.user_id,
+                to: currentPeer.username,
+                to_id: currentPeer.user_id,
+                file_name: file.name,
+                file_size: file.size,
+                file_type: file.type,
+                timestamp: new Date().toISOString()
+            };
+            try {
+                wsConnection.send(JSON.stringify(fileData));
+            } catch (sendErr) {
+                console.error('File send failed:', sendErr);
+                showNotification('File queued locally; will send when reconnected', 'error');
+            }
+        }
+
+        // Simulate file upload progress
+        simulateFileUpload(file);
+    });
+
+    // Reset file input
+    event.target.value = '';
+}
+
+function simulateFileUpload(file) {
+    showNotification(`Uploading ${file.name}...`, 'info');
+    setTimeout(() => {
+        showNotification(`${file.name} uploaded successfully`, 'success');
+    }, 2000);
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function addFileMessageToUI(fileData, isOutgoing = false) {
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
+
+    const fileIcon = getFileIcon(fileData.file_type);
+
+    messageEl.innerHTML = `
+        ${!isOutgoing ? `<div class="message-sender">${fileData.sender_username || 'Unknown'}</div>` : ''}
+        <div class="file-preview">
+            <div class="file-info">
+                <div class="file-icon">${fileIcon}</div>
+                <div class="file-details">
+                    <div class="file-name">${fileData.file_name}</div>
+                    <div class="file-size">${fileData.file_size}</div>
+                </div>
+                <button class="download-btn" onclick="downloadFile('${fileData.file_name}')">
+                    <i class="fas fa-download"></i>
+                </button>
+            </div>
+        </div>
+        <div class="message-time">${new Date(fileData.timestamp).toLocaleTimeString()}</div>
+    `;
+
+    // Attach message id for later lookup
+    if (fileData.id) messageEl.dataset.msgId = fileData.id;
+
+    // Determine conversation target id for this file message
+    const convTargetId = isOutgoing ? (fileData.receiver_id || currentPeer?.user_id) : (fileData.sender_id || currentPeer?.user_id);
+
+    // Add delete-for-me and delete-for-everyone actions
+    const actions = document.createElement('div');
+    actions.className = 'msg-actions';
+    const delMe = document.createElement('button');
+    delMe.className = 'msg-delete-me btn-small';
+    delMe.textContent = 'Delete for me';
+    delMe.addEventListener('click', () => deleteLocalMessage(messageEl.dataset.msgId, convTargetId));
+    actions.appendChild(delMe);
+    if (isOutgoing) {
+        const delAll = document.createElement('button');
+        delAll.className = 'msg-delete btn-small';
+        delAll.textContent = 'Delete for everyone';
+        delAll.addEventListener('click', () => deleteMessageForEveryone(messageEl.dataset.msgId, convTargetId));
+        actions.appendChild(delAll);
+    }
+    messageEl.appendChild(actions);
+
+        // status for outgoing messages (delivered/seen)
+        if (isOutgoing) {
+            const status = document.createElement('span');
+            status.className = 'msg-status pending';
+            status.title = 'Pending';
+            messageEl.appendChild(status);
+        }
+
+    chatMessages.appendChild(messageEl);
+    scrollToBottom();
+}
+
+// Flush locally queued outgoing messages/files when WS reconnects
+function flushQueuedMessages() {
+    if (!wsConnection || wsConnection.readyState !== WebSocket.OPEN) return;
+
+    Object.keys(messageHistory).forEach(targetId => {
+        const list = messageHistory[targetId];
+        if (!Array.isArray(list)) return;
+
+        list.forEach(msg => {
+            // Only attempt to send outgoing messages that are not marked sent
+            if (msg.is_outgoing && !msg.sent && !msg.deleted_request) {
+                let payload = null;
+                if (msg.type === 'file') {
+                    payload = {
+                        type: 'file_message',
+                        from: msg.sender_username || (currentUser && currentUser.username),
+                        from_id: msg.sender_id || (currentUser && (currentUser.id || currentUser.user_id)),
+                        to: peers.find(p=>String(p.user_id)===String(targetId))?.username || undefined,
+                        to_id: targetId,
+                        client_id: msg.id,
+                        file_name: msg.file_name,
+                        file_size: msg.file_size,
+                        file_type: msg.file_type || 'application/octet-stream',
+                        timestamp: msg.timestamp
+                    };
+                } else {
+                    payload = {
+                        type: 'send_message',
+                        from: msg.sender_username || (currentUser && currentUser.username),
+                        from_id: msg.sender_id || (currentUser && (currentUser.id || currentUser.user_id)),
+                        to: peers.find(p=>String(p.user_id)===String(targetId))?.username || undefined,
+                        to_id: targetId,
+                        client_id: msg.id,
+                        message: msg.message,
+                        timestamp: msg.timestamp
+                    };
+                }
+
+                try {
+                    wsConnection.send(JSON.stringify(payload));
+                    // mark as sent locally
+                    msg.sent = true;
+                    // persist updated history
+                    try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(list)); } catch(e){}
+                } catch (err) {
+                    console.warn('Failed to send queued msg', err);
+                }
+            }
+        });
+    });
+}
+
+function getFileIcon(fileType) {
+    if (fileType.startsWith('image/')) return '<i class="fas fa-file-image"></i>';
+    if (fileType.startsWith('video/')) return '<i class="fas fa-file-video"></i>';
+    if (fileType.startsWith('audio/')) return '<i class="fas fa-file-audio"></i>';
+    if (fileType.includes('pdf')) return '<i class="fas fa-file-pdf"></i>';
+    if (fileType.includes('word') || fileType.includes('document')) return '<i class="fas fa-file-word"></i>';
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return '<i class="fas fa-file-excel"></i>';
+    if (fileType.includes('zip') || fileType.includes('archive')) return '<i class="fas fa-file-archive"></i>';
+    return '<i class="fas fa-file"></i>';
+}
+
+function downloadFile(filename) {
+    showNotification(`Downloading ${filename}...`, 'info');
+    const blob = new Blob(['This is a simulated file download for: ' + filename], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// MESSAGE HANDLING - COMPATIBLE WITH YOUR FLASK BACKEND
+function sendMessage() {
+    if (!currentUser) {
+        showNotification('Please login first', 'error');
+        return;
+    }
+
+    const text = messageInput.value.trim();
+    if (text === '') return;
+
+    if (!currentPeer) {
+        showNotification('Please select a contact first', 'error');
+        return;
+    }
+
+    // Format message for your Flask backend
+    const messageData = {
+        type: 'send_message',
+        from: currentUser.username,
+        from_id: currentUser.id || currentUser.user_id,
+        to: currentPeer.username,
+        message: text,
+        client_id: 'temp_' + Date.now(),
+        timestamp: new Date().toISOString()
+    };
+
+    // Store message in local history
+    const localMsg = {
+        id: messageData.client_id,
+        sender_id: currentUser.id || currentUser.user_id,
+        sender_username: currentUser.username,
+        receiver_id: currentPeer.user_id,
+        message: text,
+        timestamp: new Date().toISOString(),
+        is_outgoing: true
+        ,sent: false,
+        seen: false,
+        deleted_request: false
+    };
+    storeMessageInHistory(localMsg, currentPeer.user_id);
+
+    // Add to UI immediately (best-effort)
+    try {
+        addMessageToUI(localMsg);
+    } catch (uiErr) {
+        console.error('Failed to add outgoing message to UI:', uiErr);
+    }
+
+    // Try sending over WebSocket but don't break UI if it fails
+    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        try {
+            wsConnection.send(JSON.stringify(messageData));
+        } catch (sendErr) {
+            console.error('WebSocket send failed:', sendErr);
+            showNotification('Failed to send message to server; saved locally.', 'error');
+        }
+    } else {
+        showNotification('Offline: message saved locally and will be sent when connected', 'info');
+    }
+
+    messageInput.value = '';
+}
+
+function storeMessageInHistory(message, targetId) {
+    if (!messageHistory[targetId]) {
+        messageHistory[targetId] = [];
+    }
+    messageHistory[targetId].push(message);
+    // Persist this conversation to localStorage so history survives reloads
+    try {
+        const key = `msg_history_${targetId}`;
+        localStorage.setItem(key, JSON.stringify(messageHistory[targetId]));
+    } catch (err) {
+        console.warn('Failed to persist message history:', err);
+    }
+}
+
+function loadMessageHistoryFor(targetId) {
+    if (messageHistory[targetId] && messageHistory[targetId].length) return;
+    try {
+        const key = `msg_history_${targetId}`;
+        const raw = localStorage.getItem(key);
+        if (raw) {
+            messageHistory[targetId] = JSON.parse(raw);
+        }
+    } catch (err) {
+        console.warn('Failed to load persisted message history:', err);
+    }
+    if (!messageHistory[targetId]) messageHistory[targetId] = [];
+}
+
+function addMessageToUI(messageData) {
+    const messageEl = document.createElement('div');
+    const isOutgoing = messageData.is_outgoing ||
+                      (messageData.sender_id === (currentUser.id || currentUser.user_id));
+
+    messageEl.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
+
+    // Render delete buttons: 'delete for me' (everyone) for outgoing
+    const deleteButtonsHtml = isOutgoing ?
+        `<div class="msg-actions"><button class="msg-delete btn-small" data-action="delete-everyone">Delete for everyone</button> <button class="msg-delete-me btn-small" data-action="delete-me">Delete for me</button></div>` :
+        `<div class="msg-actions"><button class="msg-delete-me btn-small" data-action="delete-me">Delete for me</button></div>`;
+
+    messageEl.innerHTML = `
+        ${!isOutgoing && currentGroup ? `<div class="message-sender">${messageData.sender_username || 'Unknown'}</div>` : ''}
+        <div class="message-text">${messageData.message}</div>
+        <div class="message-time">${new Date(messageData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        ${deleteButtonsHtml}
+    `;
+
+    // Attach message id for later lookup (may be temp id initially)
+    if (messageData.id) messageEl.dataset.msgId = messageData.id;
+    // Add a status indicator for outgoing text messages
+    if (isOutgoing) {
+        const status = document.createElement('span');
+        status.className = 'msg-status pending';
+        status.title = 'Pending';
+        // reflect persisted state if available
+        if (messageData.seen) {
+            status.classList.remove('pending');
+            status.classList.add('seen');
+            status.title = 'Seen';
+        } else if (messageData.sent) {
+            status.classList.remove('pending');
+            status.classList.add('delivered');
+            status.title = 'Delivered';
+        }
+        messageEl.appendChild(status);
+    }
+
+    chatMessages.appendChild(messageEl);
+    scrollToBottom();
+
+    // Determine conversation target id: for outgoing use receiver_id, for incoming use sender_id
+    const convTargetId = isOutgoing ? (messageData.receiver_id || currentPeer?.user_id) : (messageData.sender_id || currentPeer?.user_id);
+    // Wire up delete action handlers
+    const deleteBtn = messageEl.querySelector('.msg-delete');
+    const deleteMeBtn = messageEl.querySelector('.msg-delete-me');
+    if (deleteBtn) deleteBtn.addEventListener('click', () => deleteMessageForEveryone(messageEl.dataset.msgId, convTargetId));
+    if (deleteMeBtn) deleteMeBtn.addEventListener('click', () => deleteLocalMessage(messageEl.dataset.msgId, convTargetId));
+
+    // Show options on click (Edit/Delete) — available for both incoming and outgoing messages.
+    messageEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showMessageOptions(messageEl, messageData, isOutgoing);
+    });
+}
+
+// Show a small inline options menu when a message is clicked
+function showMessageOptions(messageEl, messageData, isOutgoing) {
+    // Remove any existing menus
+    document.querySelectorAll('.msg-menu').forEach(m => m.remove());
+
+    const menu = document.createElement('div');
+    menu.className = 'msg-menu';
+    menu.style.cssText = 'position: absolute; right: 10px; top: -10px; background: #fff; border: 1px solid #ddd; padding: 6px; border-radius:6px; z-index:1000; box-shadow:0 6px 18px rgba(0,0,0,0.12);';
+
+    // Delete for me
+    const delMe = document.createElement('button');
+    delMe.className = 'btn-small';
+    delMe.textContent = 'Delete for me';
+    delMe.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const convTarget = isOutgoing ? (messageData.receiver_id || currentPeer?.user_id) : (messageData.sender_id || currentPeer?.user_id);
+        deleteLocalMessage(messageEl.dataset.msgId, convTarget);
+        menu.remove();
+    });
+    menu.appendChild(delMe);
+
+    if (isOutgoing) {
+        // Edit button for outgoing messages
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn-small';
+        editBtn.textContent = 'Edit';
+        editBtn.style.marginLeft = '8px';
+        editBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            startEditMessage(messageEl, messageData);
+            menu.remove();
+        });
+        menu.appendChild(editBtn);
+
+        // Delete for everyone
+        const delAll = document.createElement('button');
+        delAll.className = 'btn-small';
+        delAll.textContent = 'Delete for everyone';
+        delAll.style.marginLeft = '8px';
+        delAll.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const convTarget = messageData.receiver_id || currentPeer?.user_id;
+            deleteMessageForEveryone(messageEl.dataset.msgId, convTarget);
+            menu.remove();
+        });
+        menu.appendChild(delAll);
+    }
+
+    // Position menu relative to message element
+    messageEl.style.position = 'relative';
+    messageEl.appendChild(menu);
+
+    // Close menu if clicking elsewhere. Use a single global closer to avoid
+    // adding many document listeners. The closer will remove any open .msg-menu
+    // elements when clicking outside them.
+    if (!window._msgMenuGlobalCloserAdded) {
+        window._msgMenuGlobalCloserAdded = true;
+        document.addEventListener('click', (ev) => {
+            document.querySelectorAll('.msg-menu').forEach(m => {
+                if (!m.contains(ev.target)) m.remove();
+            });
+        });
+
+        // Also remove menus on scroll inside chat messages
+        chatMessages.addEventListener('scroll', () => {
+            document.querySelectorAll('.msg-menu').forEach(m => m.remove());
+        });
+    }
+}
+
+function startEditMessage(messageEl, messageData) {
+    const msgId = messageEl.dataset.msgId;
+    if (!msgId || String(msgId).startsWith('temp_')) {
+        showNotification('Cannot edit before message is delivered', 'error');
+        return;
+    }
+
+    const textEl = messageEl.querySelector('.message-text');
+    if (!textEl) return;
+
+    const orig = textEl.textContent;
+    // Create input and action buttons
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = orig;
+    input.style.width = '70%';
+    input.style.marginRight = '6px';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'btn-small';
+    saveBtn.textContent = 'Save';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn-small';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.marginLeft = '6px';
+
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.appendChild(input);
+    container.appendChild(saveBtn);
+    container.appendChild(cancelBtn);
+
+    // Replace text element with the editor
+    textEl.style.display = 'none';
+    messageEl.insertBefore(container, textEl.nextSibling);
+
+    cancelBtn.addEventListener('click', () => {
+        container.remove();
+        textEl.style.display = '';
+    });
+
+    saveBtn.addEventListener('click', () => {
+        const newText = input.value.trim();
+        if (newText === '') return showNotification('Message cannot be empty', 'error');
+
+        // Update UI optimistically
+        textEl.textContent = newText;
+        container.remove();
+        textEl.style.display = '';
+
+        // Update local history
+        Object.keys(messageHistory).forEach(targetId => {
+            const arr = messageHistory[targetId];
+            const m = arr.find(x => String(x.id) === String(msgId));
+            if (m) {
+                m.message = newText;
+                try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(arr)); } catch(e){}
+            }
+        });
+
+        // Send edit request to server
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            try {
+                wsConnection.send(JSON.stringify({ type: 'edit_message', message_id: Number(msgId), new_message: newText }));
+            } catch (err) {
+                console.error('Failed to send edit request:', err);
+                showNotification('Edit request failed', 'error');
+            }
+        } else {
+            showNotification('Offline: edit saved locally; server will not be updated until reconnect', 'info');
+        }
+    });
+}
+
+// MESSAGE HANDLER - COMPATIBLE WITH YOUR FLASK BACKEND
+function handleRealMessage(data) {
+    console.log('📨 Handling real message from backend:', data);
+
+    switch(data.type) {
+        case 'user_registered':
+            showNotification(`Connected as ${data.username} in real chat`);
+            dhtStatusText.textContent = 'Connected - Online';
+            break;
+
+        case 'peer_list':
+            updatePeersList(data.peers);
+            break;
+
+        case 'message':
+            handleIncomingMessage(data);
+            // If the user currently has this chat open, send 'seen' for this message
+            try {
+                if (currentPeer && data.sender_id === currentPeer.user_id && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                    wsConnection.send(JSON.stringify({ type: 'message_seen', message_id: data.message_id }));
+                    // Also inform sender via DOM update (we will receive message_seen event back from server)
+                }
+            } catch (err) { console.warn('Failed to send seen notification', err); }
+            break;
+
+        case 'delivery_ack':
+            // Server ack includes mapping from client_id to real message_id
+            handleDeliveryAck(data);
+            break;
+
+        case 'message_deleted':
+            handleMessageDeleted(data);
+            break;
+
+        case 'message_edited':
+            // Update local UI for edited messages
+            const mid = String(data.message_id);
+            const el = chatMessages.querySelector(`[data-msg-id="${mid}"]`);
+            if (el) {
+                const textEl = el.querySelector('.message-text');
+                if (textEl) textEl.textContent = data.new_message;
+            }
+            // Update local history
+            Object.keys(messageHistory).forEach(targetId => {
+                const arr = messageHistory[targetId];
+                const m = arr.find(x => String(x.id) === mid);
+                if (m) { m.message = data.new_message; try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(arr)); } catch(e){} }
+            });
+            break;
+
+        case 'message_seen':
+            // mark message as seen (two checks)
+            const seenId = String(data.message_id);
+            updateMessageStatusDOM(seenId, 'seen');
+            // update local history
+            Object.keys(messageHistory).forEach(targetId => {
+                const arr = messageHistory[targetId];
+                const m = arr.find(x => String(x.id) === seenId);
+                if (m) { m.seen = true; try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(arr)); } catch(e){} }
+            });
+            break;
+
+        case 'file_message':
+            const fileMessage = {
+                id: 'file_' + Date.now(),
+                type: 'file',
+                file_name: data.file_name,
+                file_size: formatFileSize(data.file_size),
+                file_type: data.file_type,
+                timestamp: data.timestamp || new Date().toISOString(),
+                is_outgoing: false,
+                sender_id: data.sender_id,
+                sender_username: data.sender_username
+            };
+
+            storeMessageInHistory(fileMessage, data.sender_id);
+            addFileMessageToUI(fileMessage, false);
+            showNotification(`Received file: ${data.file_name}`, 'info');
+            break;
+
+        case 'call_request':
+            if (!isInCall) {
+                callerAvatar.src = `https://i.pravatar.cc/150?u=${data.from}`;
+                callerName.textContent = `Incoming ${data.call_type} call from ${data.from}`;
+                callType.textContent = data.call_type === 'video' ? 'Video Call' : 'Audio Call';
+                incomingCallAlert.classList.add('active');
+
+                window.currentCaller = {
+                    username: data.from,
+                    user_id: data.from_id,
+                    call_type: data.call_type
+                };
+            }
+            break;
+
+        case 'call_accepted':
+            if (isCaller) {
+                showNotification('Call accepted!', 'success');
+            }
+            break;
+
+        case 'call_rejected':
+            if (isCaller) {
+                showNotification('Call rejected', 'error');
+                endCall();
+            }
+            break;
+
+        case 'call_end':
+            if (isInCall) {
+                showNotification('Call ended by remote user', 'info');
+                endCall();
+            }
+            break;
+
+        case 'group_created':
+            // Server side acknowledges canonical group creation. Replace optimistic group if needed.
+            try {
+                const serverGroupId = String(data.group_id);
+                const clientId = data.client_id || data.temp_id;
+                const groupName = data.group_name || 'Unnamed Group';
+                const members = Array.isArray(data.members) ? data.members : (data.members ? [data.members] : []);
+
+                if (clientId) {
+                    // find optimistic group and update it
+                    const g = (groups || []).find(x => String(x.id) === String(clientId));
+                    if (g) {
+                        g.id = serverGroupId;
+                        g.name = groupName;
+                        g.members = members;
+
+                        // update sidebar element
+                        const el = document.querySelector(`.group-item[data-group-id="${clientId}"]`);
+                        if (el) {
+                            el.dataset.groupId = serverGroupId;
+                            const nameEl = el.querySelector('.name'); if (nameEl) nameEl.textContent = g.name;
+                            const subEl = el.querySelector('.sub'); if (subEl) subEl.textContent = `${(g.members||[]).length} members`;
+                        }
+
+                        // persist groups
+                        try { localStorage.setItem('p2p_groups', JSON.stringify(groups)); } catch(e){ console.warn('Failed to persist groups after reconcile', e); }
+                        showNotification(`Group '${g.name}' created`, 'success');
+                        break;
+                    }
+                }
+
+                // If no matching optimistic group, add new one
+                const newGroup = { id: serverGroupId, name: groupName, members: members };
+                createGroupLocal(newGroup);
+                showNotification(`Group '${newGroup.name}' created`, 'success');
+            } catch (err) {
+                console.warn('Failed handling group_created', err);
+            }
+            break;
+
+        case 'error':
+            showNotification(`Error: ${data.message}`, 'error');
+            break;
+    }
+}
+
+// Handle incoming messages from Flask backend
+function handleIncomingMessage(data) {
+    const messageData = {
+        id: data.message_id || 'msg_' + Date.now(),
+        sender_id: data.sender_id,
+        sender_username: data.sender_username,
+        receiver_id: currentUser.id || currentUser.user_id,
+        message: data.message,
+        timestamp: data.timestamp || new Date().toISOString(),
+        is_outgoing: false
+    };
+
+    let targetId = data.sender_id;
+    storeMessageInHistory(messageData, targetId);
+
+    if (currentPeer && data.sender_id === currentPeer.user_id) {
+        addMessageToUI(messageData);
+        // mark incoming message as received locally and send seen ack
+        try {
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                wsConnection.send(JSON.stringify({ type: 'message_seen', message_id: data.message_id }));
+            }
+        } catch (err) { console.warn('Failed to send seen notification', err); }
+    } else if (!currentPeer) {
+        addMessageToUI(messageData);
+    }
+
+    if (!currentPeer || data.sender_id !== currentPeer.user_id) {
+        showNotificationWithSound(`New message from ${data.sender_username}`, 'info', true);
+    }
+}
+
+function handleDeliveryAck(data) {
+    // data: { type: 'delivery_ack', client_id, message_id, to_id }
+    console.log('🔁 Delivery ack received', data);
+    const clientId = data.client_id;
+    const realId = String(data.message_id);
+    const targetId = data.to_id || data.receiver_id || (currentPeer && currentPeer.user_id);
+
+    // Update messageHistory and localStorage
+    if (messageHistory[targetId]) {
+        const msg = messageHistory[targetId].find(m => m.id === clientId);
+        if (msg) {
+            msg.id = realId;
+            msg.sent = true;
+            // persist
+            try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(messageHistory[targetId])); } catch(e){}
+            // If there was a pending delete request for this message (queued while temp), send delete now
+            if (msg.deleted_request && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                try {
+                    wsConnection.send(JSON.stringify({ type: 'delete_message', message_id: Number(realId) }));
+                    // clear the flag
+                    msg.deleted_request = false;
+                } catch (err) {
+                    console.warn('Failed to send queued delete after ack', err);
+                }
+            }
+        }
+    }
+
+    // Update DOM element data attribute
+    const el = chatMessages.querySelector(`[data-msg-id="${clientId}"]`);
+    if (el) el.dataset.msgId = realId;
+    // Update DOM status: mark outbound message as delivered (one tick)
+    updateMessageStatusDOM(realId, 'delivered');
+}
+
+function handleMessageDeleted(data) {
+    // data: { type:'message_deleted', message_id, by }
+    const mid = String(data.message_id);
+    console.log('🗑️ Message deleted event received for', mid);
+
+    // Remove from UI
+    const el = chatMessages.querySelector(`[data-msg-id="${mid}"]`);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+
+    // Remove from messageHistory & persist
+    Object.keys(messageHistory).forEach(targetId => {
+        const arr = messageHistory[targetId];
+        const idx = arr.findIndex(m => String(m.id) === mid);
+        if (idx !== -1) {
+            arr.splice(idx, 1);
+            try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(arr)); } catch(e){}
+        }
+    });
+
+    showNotification('A message was deleted', 'info');
+}
+
+// Update message status DOM (pending | delivered | seen)
+function updateMessageStatusDOM(msgId, status) {
+    if (!msgId) return;
+    const el = chatMessages.querySelector(`[data-msg-id="${msgId}"]`);
+    if (!el) return;
+    const statusEl = el.querySelector('.msg-status');
+    if (!statusEl) return;
+    statusEl.classList.remove('pending', 'delivered', 'seen');
+    if (status === 'delivered') {
+        statusEl.classList.add('delivered');
+        statusEl.title = 'Delivered';
+    } else if (status === 'seen') {
+        statusEl.classList.add('seen');
+        statusEl.title = 'Seen';
+    } else {
+        statusEl.classList.add('pending');
+        statusEl.title = 'Pending';
+    }
+}
+
+// Delete message locally (remove from UI and local storage)
+function deleteLocalMessage(msgId, targetId) {
+    if (!msgId) return;
+    const el = chatMessages.querySelector(`[data-msg-id="${msgId}"]`);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+
+    if (messageHistory[targetId]) {
+        const idx = messageHistory[targetId].findIndex(m => String(m.id) === String(msgId));
+        if (idx !== -1) {
+            messageHistory[targetId].splice(idx, 1);
+            try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(messageHistory[targetId])); } catch(e){}
+        }
+    }
+    showNotification('Message removed locally', 'success');
+}
+
+// Request delete for everyone (requires a real message id assigned by server)
+function deleteMessageForEveryone(msgId, targetId) {
+    if (!msgId) return showNotification('Cannot delete: unknown message id', 'error');
+    // If msgId is a temp id (starts with 'temp_'), queue the delete for when server assigns real id
+    if (String(msgId).startsWith('temp_')) {
+        // mark locally as deleted request and remove from UI
+        if (messageHistory[targetId]) {
+            const m = messageHistory[targetId].find(m => String(m.id) === String(msgId));
+            if (m) {
+                m.deleted_request = true;
+                try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(messageHistory[targetId])); } catch(e){}
+            }
+        }
+        deleteLocalMessage(msgId, targetId);
+        return showNotification('Delete queued: will be sent when message is delivered', 'info');
+    }
+
+    // Optimistically remove locally
+    deleteLocalMessage(msgId, targetId);
+
+    // Ask server to delete
+    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        try {
+            wsConnection.send(JSON.stringify({ type: 'delete_message', message_id: Number(msgId) }));
+        } catch (err) {
+            console.error('Failed to send delete request:', err);
+            showNotification('Delete request failed', 'error');
+        }
+    } else {
+        // If offline, delete locally and mark deletion request to be retried on reconnect
+        showNotification('Offline: message deleted locally. Server deletion will be attempted when reconnected.', 'info');
+        // mark as deleted in history so flush won't resend
+        if (messageHistory[targetId]) {
+            const m = messageHistory[targetId].find(m => String(m.id) === String(msgId));
+            if (m) m.deleted_request = true;
+            try { localStorage.setItem(`msg_history_${targetId}`, JSON.stringify(messageHistory[targetId])); } catch(e){}
+        }
+    }
+}
+
+// Call event handlers
+acceptCallBtn.addEventListener('click', async () => {
+    incomingCallAlert.classList.remove('active');
+
+    try {
+        const callType = window.currentCaller.call_type;
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: callType === 'video',
+            audio: true
+        });
+
+        localVideo.srcObject = localStream;
+        isInCall = true;
+        callContainer.classList.add('active');
+        remoteUserLabel.textContent = window.currentCaller.username;
+
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            const response = {
+                type: 'call_accepted',
+                from: currentUser.username,
+                from_id: currentUser.id,
+                to: window.currentCaller.username,
+                to_id: window.currentCaller.user_id
+            };
+            wsConnection.send(JSON.stringify(response));
+        }
+
+    } catch (error) {
+        console.error('Error accepting call:', error);
+        showNotification('Failed to access camera/microphone', 'error');
+    }
+});
+
+rejectCallBtn.addEventListener('click', () => {
+    incomingCallAlert.classList.remove('active');
+
+    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        const response = {
+            type: 'call_rejected',
+            from: currentUser.username,
+            from_id: currentUser.id,
+            to: window.currentCaller.username,
+            to_id: window.currentCaller.user_id
+        };
+        wsConnection.send(JSON.stringify(response));
+    }
+    showNotification('Call rejected', 'info');
+});
+
+// Add event listeners for call controls
+function addEventListeners() {
+    // Message sending
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    // Call buttons
+    document.getElementById('audio-call-btn').addEventListener('click', startAudioCall);
+    document.getElementById('video-call-btn').addEventListener('click', startVideoCall);
+
+    // File handling
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFileSelect);
+
+    // Call controls
+    endCallBtn.addEventListener('click', endCall);
+    muteBtn.addEventListener('click', toggleMute);
+    videoBtn.addEventListener('click', toggleVideo);
+
+    // Navigation
+    document.getElementById('back-btn').addEventListener('click', function() {
+        chatPage.classList.add('hidden');
+        emptyView.classList.remove('hidden');
+        currentPeer = null;
+        currentGroup = null;
+    });
+
+    // Profile panel
+    const profileMini = document.getElementById('profileMini');
+    const profilePanel = document.getElementById('profilePanel');
+    const panelBackdrop = document.getElementById('panelBackdrop');
+    const panelClose = document.getElementById('panelClose');
+
+    if (profileMini && profilePanel) {
+        profileMini.addEventListener('click', function() {
+            profilePanel.classList.remove('hidden');
+            setTimeout(() => profilePanel.classList.add('show'), 10);
+        });
+
+        panelBackdrop.addEventListener('click', closeProfilePanel);
+        panelClose.addEventListener('click', closeProfilePanel);
+    }
+
+    // Panel Edit button -> redirect to profile page for full edit
+    const panelEditBtn = document.getElementById('panelEdit');
+    if (panelEditBtn) {
+        panelEditBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            try {
+                if (currentUser) sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            } catch (err) { console.warn('Failed to persist currentUser before redirect', err); }
+            window.location.href = 'profile.html';
+        });
+    }
+
+    // If there is an Edit Profile button inside the dashboard, redirect to the standalone profile page
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    if (editProfileBtn) {
+        editProfileBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Ensure currentUser is saved to sessionStorage so profile.html can load it
+            try {
+                if (currentUser) sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+            } catch (err) { console.warn('Failed to persist currentUser before redirect', err); }
+            window.location.href = 'profile.html';
+        });
+    }
+
+    // Logout
+    const logoutBtn = document.getElementById('panelLogout');
+    const logoutLink = document.getElementById('logoutLink');
+
+    if (logoutBtn) logoutBtn.addEventListener('click', logoutUser);
+    if (logoutLink) logoutLink.addEventListener('click', logoutUser);
+
+    // Discover peers - COMPATIBLE WITH YOUR FLASK BACKEND
+    const discoverPeersBtn = document.getElementById('discover-peers');
+    if (discoverPeersBtn) {
+        discoverPeersBtn.addEventListener('click', function() {
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                const peersMsg = {
+                    type: 'get_peers'
+                };
+                wsConnection.send(JSON.stringify(peersMsg));
+                showNotification('Discovering peers...', 'info');
+            } else {
+                loadUsersFromAPI();
+            }
+        });
+    }
+
+    // Sidebar search: allow starting chat by typing a username (even if offline/not previously loaded)
+    const sidebarSearch = document.getElementById('search');
+    if (sidebarSearch) {
+        // use keydown for consistent Enter handling
+        sidebarSearch.addEventListener('keydown', async (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const q = sidebarSearch.value.trim();
+            if (!q) return;
+
+            // Try to find in current peers
+            let target = peers.find(p => String(p.username).toLowerCase() === q.toLowerCase());
+
+            // If not found, try to reload peers from API then search again
+            if (!target) {
+                try {
+                    await loadUsersFromAPI();
+                    target = peers.find(p => String(p.username).toLowerCase() === q.toLowerCase());
+                } catch (err) { console.warn('Search reload failed', err); }
+            }
+
+            // If still not found, create a minimal offline contact
+            if (!target) {
+                target = { user_id: q, peer_id: q, username: q, is_online: false };
+                // Add to peers so it persists in the UI for this session
+                peers.unshift(target);
+                renderPeers(peers);
+            }
+
+            // Open chat with target using existing selectPeer function
+            try {
+                selectPeer(null, target);
+            } catch (err) {
+                console.error('Failed to open chat for', target, err);
+            }
+
+            // Clear search box
+            sidebarSearch.value = '';
+        });
+    }
+
+    // New chat button opens modal
+    const newChatBtn = document.getElementById('new-chat');
+    if (newChatBtn) newChatBtn.addEventListener('click', (e) => { e.preventDefault(); openNewChatModal(); });
+}
+
+// NEW: Load real users from your Flask API
+async function loadUsersFromAPI() {
+    try {
+        const response = await fetch(`${API_URL}/chat/peers`);
+        const data = await response.json();
+
+        if (data.success) {
+            console.log('👥 Loaded real users from API:', data.peers);
+            updatePeersList(data.peers);
+        } else {
+            console.error('Failed to load peers from API:', data.message);
+            loadDefaultPeers();
+        }
+    } catch (error) {
+        console.error('Error loading peers from API:', error);
+        loadDefaultPeers();
+    }
+}
+
+// UPDATED: Peer list handling for your Flask backend
+function updatePeersList(peersData) {
+    console.log('👥 Updating peers list with:', peersData);
+
+    // Transform the data to match what your UI expects
+    const transformedPeers = peersData.map(peer => ({
+        user_id: peer.user_id || peer.id,
+        peer_id: peer.user_id || peer.id,
+        username: peer.username,
+        is_online: peer.is_online,
+        last_seen: peer.last_seen
+    }));
+
+    peers = transformedPeers;
+    renderPeers(transformedPeers);
+}
+
+function loadDefaultPeers() {
+    const defaultPeers = [
+        { user_idc: '1', peer_id: '1', username: 'Alice', is_online: true },
+        { user_id: '2', peer_id: '2', username: 'Bob', is_online: false },
+        { user_id: '3', peer_id: '3', username: 'Charlie', is_online: true },
+        { user_id: '4', peer_id: '4', username: 'Diana', is_online: true }
+    ];
+    peers = defaultPeers;
+    renderPeers(defaultPeers);
+}
+
+function renderPeers(peers) {
+    // Preserve existing group items so peers updates don't erase created groups
+    const existingGroupItems = Array.from(peerList.querySelectorAll('.group-item'));
+    peerList.innerHTML = '';
+    existingGroupItems.forEach(item => peerList.appendChild(item));
+
+    if (peers.length === 0) {
+        peerList.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--gray);">No peers available. Try discovering peers.</div>';
+        return;
+    }
+
+    peers.forEach((peer, index) => {
+        const peerItem = document.createElement('li');
+        peerItem.className = 'contact-item';
+        peerItem.dataset.peerId = peer.peer_id;
+        peerItem.dataset.userId = peer.user_id;
+
+        const statusText = peer.is_online ? 'Online' : 'Offline';
+        const lastSeen = peer.last_seen ? new Date(peer.last_seen).toLocaleTimeString() : 'Unknown';
+
+        peerItem.innerHTML = `
+            <img src="https://i.pravatar.cc/150?u=${peer.username}" alt="${peer.username}">
+            <div class="meta">
+                <div class="peer-name">${peer.username}</div>
+                <div class="peer-sub">${statusText} • Last seen: ${lastSeen}</div>
+            </div>
+        `;
+
+        peerItem.addEventListener('click', (e) => selectPeer(e, peer));
+        peerList.appendChild(peerItem);
+    });
+}
+
+function selectPeer(e, peer) {
+    document.querySelectorAll('.contact-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    if (e && e.currentTarget) e.currentTarget.classList.add('active');
+
+    currentPeer = peer;
+    currentGroup = null;
+    chatWith.textContent = peer.username;
+    chatPresence.textContent = peer.is_online ? 'Online' : 'Offline';
+    chatAvatar.src = `https://i.pravatar.cc/150?u=${peer.username}`;
+
+    emptyView.classList.add('hidden');
+    chatPage.classList.remove('hidden');
+
+    loadMessagesForPeer(peer.user_id);
+}
+
+function loadMessagesForPeer(peerId) {
+    chatMessages.innerHTML = '';
+
+    const welcomeMsg = document.createElement('div');
+    welcomeMsg.className = 'message incoming';
+    welcomeMsg.innerHTML = `
+        <div class="message-text">💬 Start chatting with ${currentPeer?.username || 'this peer'}!</div>
+        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+    `;
+    chatMessages.appendChild(welcomeMsg);
+
+    // Load persisted history (if any) then render
+    loadMessageHistoryFor(peerId);
+    if (messageHistory[peerId] && messageHistory[peerId].length > 0) {
+        messageHistory[peerId].forEach(message => {
+            if (message.type === 'file') {
+                addFileMessageToUI(message, message.is_outgoing);
+            } else {
+                addMessageToUI(message);
+            }
+        });
+    }
+
+    // After rendering history, send seen notifications for any incoming messages that are not marked seen
+    try {
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            const toMark = [];
+            const list = messageHistory[peerId] || [];
+            list.forEach(m => {
+                if (!m.is_outgoing && m.id && !m.seen) toMark.push(m.id);
+            });
+            if (toMark.length) {
+                wsConnection.send(JSON.stringify({ type: 'message_seen', message_ids: toMark }));
+                // mark locally
+                list.forEach(m => { if (!m.is_outgoing && m.id) m.seen = true; });
+                try { localStorage.setItem(`msg_history_${peerId}`, JSON.stringify(list)); } catch(e){}
+            }
+        }
+    } catch (err) { console.warn('Error sending seen batch', err); }
+
+    scrollToBottom();
+}
+
+// Load stored messages for a group and render them
+function loadGroupHistory(group) {
+    if (!group || !group.id) return;
+    chatMessages.innerHTML = '';
+
+    const welcomeMsg = document.createElement('div');
+    welcomeMsg.className = 'message incoming';
+    welcomeMsg.innerHTML = `
+        <div class="message-text">💬 Group: ${escapeHtml(group.name)} — ${ (group.members||[]).length } members</div>
+        <div class="message-time">${new Date().toLocaleTimeString()}</div>
+    `;
+    chatMessages.appendChild(welcomeMsg);
+
+    // Load persisted group history
+    try {
+        const key = `msg_history_group_${group.id}`;
+        const raw = localStorage.getItem(key);
+        let arr = [];
+        if (raw) arr = JSON.parse(raw);
+        // store in messageHistory under a group-specific key to avoid id clashes
+        messageHistory[`group_${group.id}`] = arr || [];
+
+        if (arr && arr.length) {
+            arr.forEach(message => {
+                if (message.type === 'file') addFileMessageToUI(message, message.is_outgoing);
+                else addMessageToUI(message);
+            });
+        }
+    } catch (err) {
+        console.warn('Failed to load persisted group history', err);
+    }
+
+    scrollToBottom();
+}
+
+function closeProfilePanel() {
+    const profilePanel = document.getElementById('profilePanel');
+    if (profilePanel) {
+        profilePanel.classList.remove('show');
+        setTimeout(() => profilePanel.classList.add('hidden'), 300);
+    }
+}
+
+function logoutUser() {
+    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+        wsConnection.close();
+    }
+
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('loginTime');
+
+    showNotification('Logged out successfully', 'success');
+    setTimeout(() => {
+        window.location.href = 'index.html';
+    }, 1000);
+}
+
+function scrollToBottom() {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showNotification(message, type = 'info') {
+    const existingNotifications = document.querySelectorAll('.custom-notification');
+    existingNotifications.forEach(notification => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    });
+
+    const notification = document.createElement('div');
+    notification.className = 'custom-notification';
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: ${type === 'error' ? '#e74c3c' : type === 'success' ? '#2ecc71' : '#0088cc'};
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-width: 300px;
+        font-weight: 500;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+    }, 10);
+
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 4000);
+}
+
+// Play a short notification sound using WebAudio
+function playNotificationSound(volumePercent = 80) {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, ctx.currentTime);
+        g.gain.setValueAtTime((volumePercent / 100) * 0.08, ctx.currentTime);
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start();
+        setTimeout(() => {
+            o.stop();
+            try { ctx.close(); } catch (e) {}
+        }, 120);
+    } catch (err) {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=');
+            audio.volume = (volumePercent/100);
+            audio.play().catch(()=>{});
+        } catch (e) {}
+    }
+}
+
+// Enhanced showNotification that can optionally play sound
+function showNotificationWithSound(message, type = 'info', playSound = false) {
+    showNotification(message, type);
+    try {
+        const soundEnabled = JSON.parse(localStorage.getItem('soundNotifications') || 'true');
+        const volume = parseInt(localStorage.getItem('notificationVolume') || '80', 10);
+        if (playSound && soundEnabled) playNotificationSound(volume);
+    } catch (err) { /* ignore */ }
+}
+
+// Check authentication
+if (!checkAuthentication()) {
+    throw new Error('Authentication failed - redirecting to login');
+}
+
+// Create Group: modal logic, populate peers, submit via WebSocket
+(function(){
+    const openBtn = document.getElementById('create-group');
+    const modal = document.getElementById('createGroupModal');
+    const closeBtn = document.getElementById('createGroupClose');
+    const cancelBtn = document.getElementById('createGroupCancel');
+    const submitBtn = document.getElementById('createGroupSubmit');
+    const peersContainer = document.getElementById('create-group-peers');
+    const nameInput = document.getElementById('groupName');
+
+    function showModal() {
+        if (!modal) return;
+        populatePeersList();
+        modal.style.display = 'flex';
+        try { nameInput.focus(); } catch(e){}
+    }
+
+    function hideModal() {
+        if (!modal) return;
+        modal.style.display = 'none';
+        // clear inputs
+        if (nameInput) nameInput.value = '';
+        if (peersContainer) peersContainer.innerHTML = '';
+    }
+
+    function populatePeersList() {
+        if (!peersContainer) return;
+        peersContainer.innerHTML = '';
+        const list = (peers && peers.length) ? peers : [];
+        // exclude self if possible
+        const me = currentUser && currentUser.username;
+        if (list.length === 0) {
+            const note = document.createElement('div');
+            note.textContent = 'No peers available. Try Discover Peers or wait for peers to connect.';
+            note.style.color = '#666';
+            peersContainer.appendChild(note);
+            return;
+        }
+        list.forEach(p => {
+            if (p.username === me) return; // don't include self
+            const row = document.createElement('label');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '8px';
+            row.style.padding = '6px';
+            row.style.cursor = 'pointer';
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.value = p.username;
+            cb.dataset.userid = p.user_id || '';
+
+            const avatar = document.createElement('img');
+            avatar.src = `https://i.pravatar.cc/40?u=${encodeURIComponent(p.username)}`;
+            avatar.style.width = '32px';
+            avatar.style.height = '32px';
+            avatar.style.borderRadius = '50%';
+
+            const span = document.createElement('span');
+            span.textContent = p.username + (p.is_online ? ' (online)' : ' (offline)');
+            span.style.marginLeft = '6px';
+
+            row.appendChild(cb);
+            row.appendChild(avatar);
+            row.appendChild(span);
+            peersContainer.appendChild(row);
+        });
+    }
+
+    function createGroupLocal(group) {
+        // push to local groups list and add entry to sidebar
+        groups = groups || [];
+        // avoid duplicates
+        const exists = groups.find(g => String(g.id) === String(group.id));
+        if (!exists) groups.push(group);
+        // add to UI
+        const ul = document.getElementById('peer-list');
+        if (!ul) return;
+        const li = document.createElement('li');
+        li.className = 'contact-item group-item';
+        li.dataset.groupId = group.id;
+        li.style.cursor = 'pointer';
+        li.innerHTML = `<div class="avatar"><i class="fas fa-users"></i></div><div class="meta"><div class="name">${escapeHtml(group.name)}</div><div class="sub">${(group.members||[]).length} members</div></div>`;
+        li.addEventListener('click', () => selectGroup(group));
+        ul.insertBefore(li, ul.firstChild);
+        // persist groups so they survive reloads
+        try { localStorage.setItem('p2p_groups', JSON.stringify(groups)); } catch(e) { console.warn('Failed to persist groups', e); }
+    }
+
+    function persistGroups() {
+        try { localStorage.setItem('p2p_groups', JSON.stringify(groups || [])); } catch(e) { console.warn('persistGroups error', e); }
+    }
+
+    function loadGroupsFromStorage() {
+        try {
+            const raw = localStorage.getItem('p2p_groups');
+            if (!raw) return;
+            const saved = JSON.parse(raw);
+            if (!Array.isArray(saved)) return;
+            groups = saved;
+            // render groups in sidebar (prepend so groups appear above peers)
+            const ul = document.getElementById('peer-list');
+            if (!ul) return;
+            // Insert groups in reverse order to keep original order
+            saved.slice().reverse().forEach(g => {
+                const li = document.createElement('li');
+                li.className = 'contact-item group-item';
+                li.dataset.groupId = g.id;
+                li.style.cursor = 'pointer';
+                li.innerHTML = `<div class="avatar"><i class="fas fa-users"></i></div><div class="meta"><div class="name">${escapeHtml(g.name)}</div><div class="sub">${(g.members||[]).length} members</div></div>`;
+                li.addEventListener('click', () => selectGroup(g));
+                ul.insertBefore(li, ul.firstChild);
+            });
+        } catch (err) { console.warn('loadGroupsFromStorage failed', err); }
+    }
+
+    function selectGroup(group) {
+        currentGroup = group;
+        currentPeer = null;
+        // update header
+        const chatWithEl = document.getElementById('chat-with');
+        const groupIndicator = document.getElementById('group-indicator');
+        if (chatWithEl) chatWithEl.textContent = group.name;
+        if (groupIndicator) groupIndicator.classList.remove('hidden');
+        // show chat page
+        document.getElementById('empty-view').classList.add('hidden');
+        document.getElementById('chat-page').classList.remove('hidden');
+        // Load group message history
+        try { loadGroupHistory(group); } catch (err) { console.warn('Failed to load group history', err); }
+        showNotification(`Opened group: ${group.name}`, 'success');
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; }); }
+
+    if (openBtn) openBtn.addEventListener('click', (e)=>{ e.preventDefault(); showModal(); });
+    if (closeBtn) closeBtn.addEventListener('click', hideModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', hideModal);
+
+    // Submit: collect selected usernames and send create_group over WebSocket
+    if (submitBtn) submitBtn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const name = nameInput && nameInput.value && nameInput.value.trim();
+        if (!name) return showNotification('Please provide a group name', 'error');
+        const checked = Array.from(peersContainer.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        if (!checked.length) return showNotification('Select at least one participant', 'error');
+
+        // Create a temporary group id so we can reconcile optimistic UI with server response
+        const tempId = 'g_temp_' + Date.now();
+        // include creator in optimistic members so UI shows correct member count/name
+        const tempGroup = { id: tempId, name: name, members: [ (currentUser && currentUser.username) || 'me' ].concat(checked.slice()) };
+
+        // Add temporary group locally immediately
+        createGroupLocal(tempGroup);
+
+        const payload = { type: 'create_group', group_name: name, members: checked, client_id: tempId };
+        console.log('▶️ Sending create_group payload ->', payload);
+
+        try {
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                wsConnection.send(JSON.stringify(payload));
+                showNotification('Group creation sent', 'success');
+                console.log('✅ create_group sent (ws open)');
+            } else {
+                // optimistic local create when WS is unavailable
+                showNotification('Offline — group saved locally', 'info');
+                console.log('⚠️ WS closed — stored group locally (temp id)', tempGroup);
+            }
+        } catch (err) { console.warn('Failed to send create_group', err); }
+
+        hideModal();
+    });
+
+})();
+
+// Debug function
+window.debugP2P = function() {
+    console.log('=== P2P CHAT DEBUG INFO ===');
+    console.log('Current User:', currentUser);
+    console.log('WebSocket State:', wsConnection ? wsConnection.readyState : 'No connection');
+    console.log('Current Peer:', currentPeer);
+    console.log('All Peers:', peers);
+    console.log('API URL:', API_URL);
+    console.log('WS URL:', WS_URL);
+    console.log('==========================');
+};
+
+console.log('🔧 Debug functions available: window.debugP2P()');</script>
+</body>
+</html
