@@ -1,0 +1,2027 @@
+
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, send_from_directory
+from flask_cors import CORS
+import sqlite3
+import hashlib
+import os
+import json
+import asyncio
+import websockets
+import threading
+import time
+from datetime import datetime
+
+app = Flask(__name__)
+app.secret_key = 'p2p-chat-secret-key-2024'
+CORS(app)
+
+from functools import wraps
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.path.startswith('/api/'):
+                return jsonify({"success": False, "message": "Authentication required"}), 401
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated
+
+# WebSocket connections storage
+active_connections = {}
+user_peers = {}
+
+
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+
+    # Users table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            profile_data TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # User profiles table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER UNIQUE NOT NULL,
+            full_name TEXT,
+            bio TEXT,
+            avatar_url TEXT,
+            location TEXT,
+            website TEXT,
+            status TEXT DEFAULT 'Online',
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Messages table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER,
+            group_id INTEGER,
+            message TEXT NOT NULL,
+            message_type TEXT DEFAULT 'text',
+            file_name TEXT,
+            file_size INTEGER,
+            file_type TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            seen INTEGER DEFAULT 0,
+            FOREIGN KEY (sender_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Groups table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            created_by INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users (id)
+        )
+    ''')
+
+    # Group members table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS group_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (group_id) REFERENCES groups (id),
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Settings table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS user_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER UNIQUE NOT NULL,
+            theme TEXT DEFAULT 'light',
+            notifications_enabled BOOLEAN DEFAULT TRUE,
+            privacy_level TEXT DEFAULT 'everyone',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+              ''')
+              # Add these to your init_db() function:
+
+      # Friend requests table
+    c.execute('''
+     CREATE TABLE IF NOT EXISTS friend_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        receiver_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',  -- pending, accepted, rejected, cancelled
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES users (id),
+        FOREIGN KEY (receiver_id) REFERENCES users (id),
+        UNIQUE(sender_id, receiver_id)  -- Prevent duplicate requests
+     )
+    ''')
+
+      # Friendships table
+    c.execute('''
+     CREATE TABLE IF NOT EXISTS friendships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user1_id INTEGER NOT NULL,
+        user2_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user1_id) REFERENCES users (id),
+        FOREIGN KEY (user2_id) REFERENCES users (id),
+        UNIQUE(user1_id, user2_id),
+        CHECK (user1_id < user2_id)  -- Ensure friendship is stored once
+     )
+    ''')
+    
+
+    conn.commit()
+    # Ensure 'seen' column exists for older DBs
+    try:
+        c.execute("PRAGMA table_info(messages)")
+        cols = [row[1] for row in c.fetchall()]
+        if 'seen' not in cols:
+            c.execute('ALTER TABLE messages ADD COLUMN seen INTEGER DEFAULT 0')
+            conn.commit()
+    except Exception:
+        pass
+    conn.close()
+
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+# WebSocket handler
+async def websocket_handler(websocket, path):
+    username = None
+    try:
+        # Wait for initial registration message
+        message = await websocket.recv()
+        data = json.loads(message)
+
+        if data.get('type') == 'register':
+            username = data['username']
+            user_id = data.get('user_id')
+
+            # Store connection
+            active_connections[username] = websocket
+            user_peers[username] = {
+                'user_id': user_id,
+                'username': username,
+                'is_online': True,
+                'last_seen': datetime.now().isoformat()
+            }
+
+            print(f"User {username} connected via WebSocket")
+
+            # Send confirmation
+            await websocket.send(json.dumps({
+                'type': 'user_registered',
+                'username': username,
+                'user_id': user_id,
+                'message': 'Successfully connected to P2P Chat server'
+            }))
+
+            # Send current peer list
+            await broadcast_peer_list()
+
+            # Keep connection alive and handle messages
+            try:
+                async for message in websocket:
+                    data = json.loads(message)
+                    await handle_websocket_message(data, websocket, username)
+            except websockets.exceptions.ConnectionClosed:
+                print(f"WebSocket connection closed for {username}")
+
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        # Clean up on disconnect
+        if username and username in active_connections:
+            del active_connections[username]
+        if username and username in user_peers:
+            user_peers[username]['is_online'] = False
+            user_peers[username]['last_seen'] = datetime.now().isoformat()
+        await broadcast_peer_list()
+
+
+        #qwertyuiop
+        
+
+
+async def handle_websocket_message(data, websocket, username):
+    message_type = data.get('type')
+
+    if message_type == 'send_message':
+        await handle_send_message(data, websocket, username)
+    elif message_type == 'get_peers':
+        await send_peer_list(websocket)
+    elif message_type == 'broadcast_message':
+        await handle_broadcast_message(data, username)
+    elif message_type == 'group_message':
+        await handle_group_message(data, websocket, username)
+    elif message_type == 'get_group_messages':
+        await handle_get_group_messages(data, websocket, username)
+    elif message_type == 'get_groups':
+        await handle_get_groups(websocket, username)
+    elif message_type == 'create_group':
+        await handle_create_group(data, username)
+    elif message_type == 'call_request':
+        await handle_call_request(data, username)
+    elif message_type == 'call_accepted':
+        await handle_call_accepted(data, username)
+    elif message_type == 'call_rejected':
+        await handle_call_rejected(data, username)
+    elif message_type == 'call_end':
+        await handle_call_end(data, username)
+    elif message_type == 'file_message':
+        await handle_file_message(data, username)
+    elif message_type == 'delete_message':
+        await handle_delete_message(data, username)
+    elif message_type == 'edit_message':
+        await handle_edit_message(data, username)
+    elif message_type == 'message_seen':
+        await handle_message_seen(data, username)
+        # Add these cases to your handle_websocket_message function:
+    elif message_type == 'friend_request':
+       await handle_friend_request(data, username)
+    elif message_type == 'accept_friend_request':
+      await handle_accept_friend_request(data, username)
+    elif message_type == 'reject_friend_request':
+      await handle_reject_friend_request(data, username)
+    elif message_type == 'cancel_friend_request':
+     await handle_cancel_friend_request(data, username)
+    elif message_type == 'remove_friend':
+     await handle_remove_friend(data, username)
+    elif message_type == 'get_friends':
+     await handle_get_friends(websocket, username)
+    elif message_type == 'get_friend_requests':
+     await handle_get_friend_requests(websocket, username)
+    elif message_type == 'get_users':
+     await handle_get_all_users(websocket, username)
+
+
+async def handle_send_message(data, websocket, sender_username):
+    receiver_username = data.get('to')
+    message_text = data.get('message')
+    client_id = data.get('client_id')
+
+    # Check if users are friends
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    # Get user IDs
+    c.execute('SELECT id FROM users WHERE username = ?', (sender_username,))
+    sender = c.fetchone()
+    c.execute('SELECT id FROM users WHERE username = ?', (receiver_username,))
+    receiver = c.fetchone()
+    
+    if not sender or not receiver:
+        conn.close()
+        return
+    
+    # Check friendship
+    c.execute('''
+        SELECT 1 FROM friendships 
+        WHERE (user1_id = ? AND user2_id = ?) 
+           OR (user1_id = ? AND user2_id = ?)
+    ''', (sender[0], receiver[0], receiver[0], sender[0]))
+    
+    are_friends = c.fetchone()
+    
+    if not are_friends:
+        conn.close()
+        # Send error to sender
+        try:
+            await websocket.send(json.dumps({
+                'type': 'error',
+                'message': 'You can only send messages to friends'
+            }))
+        except:
+            pass
+        return
+    
+    # Save message to database
+    c.execute('''
+        INSERT INTO messages (sender_id, receiver_id, message, message_type)
+        VALUES (?, ?, ?, ?)
+    ''', (sender[0], receiver[0], message_text, 'text'))
+    conn.commit()
+    message_id = c.lastrowid
+    
+    conn.close()
+
+    # Prepare payload
+    payload = {
+        'type': 'message',
+        'sender_username': sender_username,
+        'sender_id': sender[0],
+        'message': message_text,
+        'timestamp': datetime.now().isoformat(),
+        'message_id': message_id,
+        'client_id': client_id
+    }
+
+    # Forward message to recipient if online
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps(payload))
+        except:
+            print(f"Failed to send message to {receiver_username}")
+
+    # Send delivery ack back to sender
+    try:
+        ack = {
+            'type': 'delivery_ack', 
+            'client_id': client_id, 
+            'message_id': message_id, 
+            'to_id': receiver[0]
+        }
+        await websocket.send(json.dumps(ack))
+    except Exception:
+        pass
+
+
+async def handle_file_message(data, sender_username):
+    receiver_username = data.get('to')
+    file_data = {
+        'file_name': data.get('file_name'),
+        'file_size': data.get('file_size'),
+        'file_type': data.get('file_type')
+    }
+
+    # Save file message to database
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+
+    c.execute('SELECT id FROM users WHERE username = ?', (sender_username,))
+    sender = c.fetchone()
+    c.execute('SELECT id FROM users WHERE username = ?', (receiver_username,))
+    receiver = c.fetchone()
+
+    if sender and receiver:
+        c.execute('''
+            INSERT INTO messages (sender_id, receiver_id, message, message_type, file_name, file_size, file_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (sender[0], receiver[0], f"File: {file_data['file_name']}", 'file',
+              file_data['file_name'], file_data['file_size'], file_data['file_type']))
+        conn.commit()
+
+    conn.close()
+
+    # Forward file message to recipient
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps({
+                'type': 'file_message',
+                'sender_username': sender_username,
+                'sender_id': user_peers[sender_username]['user_id'],
+                'file_name': file_data['file_name'],
+                'file_size': file_data['file_size'],
+                'file_type': file_data['file_type'],
+                'timestamp': datetime.now().isoformat()
+            }))
+        except:
+            print(f"Failed to send file message to {receiver_username}")
+
+
+async def handle_delete_message(data, username):
+    """Handle a delete request from a connected client.
+    Expects data: { message_id: <int> }
+    Only the sender or receiver may delete the message.
+    """
+    try:
+        message_id = data.get('message_id')
+        if not message_id:
+            return
+
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        c.execute('SELECT id, sender_id, receiver_id FROM messages WHERE id = ?', (message_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return
+
+        _, sender_id, receiver_id = row
+
+        # resolve usernames for authorization and notification
+        c.execute('SELECT username FROM users WHERE id = ?', (sender_id,))
+        srow = c.fetchone()
+        sender_username = srow[0] if srow else None
+        c.execute('SELECT username FROM users WHERE id = ?', (receiver_id,))
+        rrow = c.fetchone()
+        receiver_username = rrow[0] if rrow else None
+
+        # allow deletion only by sender or receiver
+        if username != sender_username and username != receiver_username:
+            conn.close()
+            return
+
+        # delete the message
+        c.execute('DELETE FROM messages WHERE id = ?', (message_id,))
+        conn.commit()
+        conn.close()
+
+        notif = {'type': 'message_deleted', 'message_id': message_id, 'by': username}
+
+        # notify receiver
+        if receiver_username in active_connections:
+            try:
+                await active_connections[receiver_username].send(json.dumps(notif))
+            except:
+                pass
+
+        # notify sender
+        if sender_username in active_connections:
+            try:
+                await active_connections[sender_username].send(json.dumps(notif))
+            except:
+                pass
+
+    except Exception as e:
+        print('Error in handle_delete_message:', e)
+
+
+async def handle_edit_message(data, username):
+    """Handle an edit request from a connected client.
+    Expects data: { message_id: <int>, new_message: <str> }
+    Only the original sender is allowed to edit.
+    """
+    try:
+        message_id = data.get('message_id')
+        new_text = data.get('new_message')
+        if not message_id or new_text is None:
+            return
+
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        c.execute('SELECT id, sender_id, receiver_id FROM messages WHERE id = ?', (message_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return
+
+        _, sender_id, receiver_id = row
+
+        c.execute('SELECT username FROM users WHERE id = ?', (sender_id,))
+        srow = c.fetchone()
+        sender_username = srow[0] if srow else None
+        c.execute('SELECT username FROM users WHERE id = ?', (receiver_id,))
+        rrow = c.fetchone()
+        receiver_username = rrow[0] if rrow else None
+
+        # Only sender can edit
+        if username != sender_username:
+            conn.close()
+            return
+
+        # update message text
+        c.execute('UPDATE messages SET message = ? WHERE id = ?', (new_text, message_id))
+        conn.commit()
+        conn.close()
+
+        notif = {'type': 'message_edited', 'message_id': message_id, 'new_message': new_text, 'by': username}
+
+        # notify receiver
+        if receiver_username in active_connections:
+            try:
+                await active_connections[receiver_username].send(json.dumps(notif))
+            except:
+                pass
+
+        # notify sender (in case they have another session)
+        if sender_username in active_connections:
+            try:
+                await active_connections[sender_username].send(json.dumps(notif))
+            except:
+                pass
+
+    except Exception as e:
+        print('Error in handle_edit_message:', e)
+
+
+async def handle_message_seen(data, username):
+    """Handle when a client reports message(s) as seen.
+    Expects: { message_id: <int> } or { message_ids: [<int>, ...] }
+    Marks messages as seen in DB and notifies sender(s).
+    """
+    try:
+        ids = []
+        if 'message_ids' in data and isinstance(data['message_ids'], list):
+            ids = [int(x) for x in data['message_ids']]
+        elif 'message_id' in data:
+            ids = [int(data['message_id'])]
+
+        if not ids:
+            return
+
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        for mid in ids:
+            # mark seen
+            try:
+                c.execute('UPDATE messages SET seen = 1 WHERE id = ?', (mid,))
+                conn.commit()
+            except Exception:
+                continue
+
+            # find sender to notify
+            c.execute('SELECT sender_id FROM messages WHERE id = ?', (mid,))
+            row = c.fetchone()
+            if not row:
+                continue
+            sender_id = row[0]
+            c.execute('SELECT username FROM users WHERE id = ?', (sender_id,))
+            srow = c.fetchone()
+            sender_username = srow[0] if srow else None
+
+            notif = {'type': 'message_seen', 'message_id': mid, 'by': username}
+            if sender_username and sender_username in active_connections:
+                try:
+                    await active_connections[sender_username].send(json.dumps(notif))
+                except:
+                    pass
+
+        conn.close()
+
+    except Exception as e:
+        print('Error in handle_message_seen:', e)
+
+
+async def handle_call_request(data, sender_username):
+    receiver_username = data.get('to')
+    call_type = data.get('call_type', 'audio')
+
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps({
+                'type': 'call_request',
+                'from': sender_username,
+                'from_id': user_peers[sender_username]['user_id'],
+                'call_type': call_type,
+                'timestamp': datetime.now().isoformat()
+            }))
+        except:
+            print(f"Failed to send call request to {receiver_username}")
+
+
+async def handle_call_accepted(data, sender_username):
+    receiver_username = data.get('to')
+
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps({
+                'type': 'call_accepted',
+                'from': sender_username,
+                'from_id': user_peers[sender_username]['user_id'],
+                'timestamp': datetime.now().isoformat()
+            }))
+        except:
+            print(f"Failed to send call accepted to {receiver_username}")
+
+
+async def handle_call_rejected(data, sender_username):
+    receiver_username = data.get('to')
+
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps({
+                'type': 'call_rejected',
+                'from': sender_username,
+                'from_id': user_peers[sender_username]['user_id'],
+                'timestamp': datetime.now().isoformat()
+            }))
+        except:
+            print(f"Failed to send call rejected to {receiver_username}")
+
+
+async def handle_call_end(data, sender_username):
+    receiver_username = data.get('to')
+
+    if receiver_username in active_connections:
+        try:
+            await active_connections[receiver_username].send(json.dumps({
+                'type': 'call_end',
+                'from': sender_username,
+                'from_id': user_peers[sender_username]['user_id'],
+                'timestamp': datetime.now().isoformat()
+            }))
+        except:
+            print(f"Failed to send call end to {receiver_username}")
+
+
+async def handle_broadcast_message(data, sender_username):
+    message_text = data.get('message')
+
+    # Broadcast to all connected users except sender
+    for username, ws in active_connections.items():
+        if username != sender_username:
+            try:
+                await ws.send(json.dumps({
+                    'type': 'message',
+                    'sender_username': sender_username,
+                    'sender_id': user_peers[sender_username]['user_id'],
+                    'message': message_text,
+                    'timestamp': datetime.now().isoformat(),
+                    'is_broadcast': True
+                }))
+            except:
+                print(f"Failed to broadcast to {username}")
+
+
+async def handle_create_group(data, creator_username):
+    group_name = data.get('group_name')
+    members = data.get('members', [])
+    # Optional client-side temp id to allow clients replace optimistic groups
+    client_id = data.get('client_id') or data.get('temp_id')
+
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+
+    # Get creator ID
+    c.execute('SELECT id FROM users WHERE username = ?', (creator_username,))
+    creator = c.fetchone()
+
+    group_id = None
+    created_by_username = creator_username
+    created_members = []
+
+    try:
+        if creator:
+            # Create group
+            c.execute('INSERT INTO groups (name, created_by) VALUES (?, ?)', (group_name, creator[0]))
+            group_id = c.lastrowid
+
+            # Add creator to group (avoid duplicate)
+            c.execute('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)', (group_id, creator[0]))
+
+            # Add other members (only if they exist)
+            for member_username in members:
+                c.execute('SELECT id FROM users WHERE username = ?', (member_username,))
+                member = c.fetchone()
+                if member:
+                    try:
+                        c.execute('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)', (group_id, member[0]))
+                        created_members.append(member_username)
+                    except Exception:
+                        # ignore duplicate inserts or other member-specific failures
+                        pass
+
+            conn.commit()
+    except Exception as e:
+        print('Error creating group:', e)
+        conn.rollback()
+    finally:
+        conn.close()
+
+    # If group was created, notify creator and members so clients can reconcile optimistic UI
+    if group_id:
+        notif = {
+            'type': 'group_created',
+            'group_id': group_id,
+            'group_name': group_name,
+            'members': [creator_username] + created_members,
+            'created_by': created_by_username,
+            'client_id': client_id
+        }
+
+        # Send notification to every affected member if they're online
+        targets = set([created_by_username] + created_members)
+        for username in targets:
+            try:
+                if username in active_connections:
+                    asyncio.create_task(active_connections[username].send(json.dumps(notif)))
+            except Exception:
+                pass
+
+async def handle_friend_request(data, sender_username):
+    """Handle sending a friend request"""
+    print(f"🔔 DEBUG: Friend request handler called by {sender_username}")
+    print(f"🔔 DEBUG: Request data: {data}")
+    
+    to_id = data.get('to_id')
+    receiver_username = None
+    
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get sender's user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (sender_username,))
+        sender = c.fetchone()
+        
+        print(f"🔔 DEBUG: Sender ID: {sender}")
+        
+        if not sender:
+            print(f"❌ DEBUG: Sender {sender_username} not found in database")
+            return
+        
+        # Get receiver's username if we only have ID
+        if to_id:
+            c.execute('SELECT id, username FROM users WHERE id = ?', (to_id,))
+            receiver = c.fetchone()
+            if receiver:
+                receiver_username = receiver[1]
+                print(f"🔔 DEBUG: Receiver found: {receiver_username} (ID: {to_id})")
+        
+        if sender and receiver:
+            # Check if request already exists
+            c.execute('''
+                SELECT id FROM friend_requests 
+                WHERE (sender_id = ? AND receiver_id = ?) 
+                   OR (sender_id = ? AND receiver_id = ?)
+            ''', (sender[0], receiver[0], receiver[0], sender[0]))
+            existing = c.fetchone()
+            
+            if existing:
+                print(f"⚠️ DEBUG: Friend request already exists between {sender_username} and {receiver_username}")
+            
+            if not existing:
+                # Insert new friend request
+                c.execute('''
+                    INSERT INTO friend_requests (sender_id, receiver_id, status)
+                    VALUES (?, ?, 'pending')
+                ''', (sender[0], receiver[0]))
+                conn.commit()
+                request_id = c.lastrowid
+                
+                print(f"✅ DEBUG: Friend request saved to database (ID: {request_id})")
+                
+                # Notify receiver if online
+                if receiver_username in active_connections:
+                    print(f"✅ DEBUG: Receiver {receiver_username} is online, sending notification...")
+                    try:
+                        await active_connections[receiver_username].send(json.dumps({
+                            'type': 'friend_request_received',
+                            'from': sender_username,
+                            'from_id': sender[0],
+                            'to': receiver_username,
+                            'to_id': receiver[0],
+                            'request_id': request_id,
+                            'timestamp': datetime.now().isoformat()
+                        }))
+                        print(f"✅ DEBUG: Notification sent successfully to {receiver_username}")
+                    except Exception as e:
+                        print(f"❌ DEBUG: Failed to notify {receiver_username}: {e}")
+                else:
+                    print(f"⚠️ DEBUG: Receiver {receiver_username} is NOT online in active_connections")
+                    print(f"⚠️ DEBUG: Active connections: {list(active_connections.keys())}")
+    except Exception as e:
+        print(f"❌ DEBUG: Error in handle_friend_request: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        conn.close()
+
+async def handle_accept_friend_request(data, accepter_username):
+    """Handle accepting a friend request"""
+    from_id = data.get('from_id')  # This is the user who sent the request
+    
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get accepter's user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (accepter_username,))
+        accepter = c.fetchone()
+        
+        if not accepter:
+            return
+        
+        # Get the friend request
+        c.execute('''
+            SELECT fr.id, fr.sender_id, fr.receiver_id, u.username 
+            FROM friend_requests fr
+            JOIN users u ON fr.sender_id = u.id
+            WHERE fr.sender_id = ? AND fr.receiver_id = ? AND fr.status = 'pending'
+        ''', (from_id, accepter[0]))
+        request = c.fetchone()
+        
+        if request:
+
+            request_id, sender_id, receiver_id, sender_username = request
+            
+            # Update request status
+            c.execute('UPDATE friend_requests SET status = "accepted" WHERE id = ?', (request_id,))
+            
+            # Create friendship (ensure user1_id < user2_id)
+            user1_id = min(sender_id, receiver_id)
+            user2_id = max(sender_id, receiver_id)
+            
+            c.execute('''
+                INSERT OR IGNORE INTO friendships (user1_id, user2_id)
+                VALUES (?, ?)
+            ''', (user1_id, user2_id))
+            
+            conn.commit()
+            
+            # Get sender's username for notification
+            c.execute('SELECT username FROM users WHERE id = ?', (sender_id,))
+            sender_username = c.fetchone()[0]
+            
+            # Notify both users
+            notification = {
+                'type': 'friend_request_accepted',
+                'user_id': accepter[0],
+                'username': accepter_username,
+                'friend_id': sender_id,
+                'friend_username': sender_username,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Notify sender
+            if sender_username in active_connections:
+                try:
+                    await active_connections[sender_username].send(json.dumps(notification))
+                except:
+                    print(f"Failed to notify {sender_username} about accepted request")
+            
+            # Notify receiver (accepter)
+            if accepter_username in active_connections:
+                try:
+                    await active_connections[accepter_username].send(json.dumps({
+                        'type': 'friend_request_accepted',
+                        'user_id': sender_id,
+                        'username': sender_username,
+                        'friend_id': accepter[0],
+                        'friend_username': accepter_username,
+                        'timestamp': datetime.now().isoformat()
+                    }))
+                except:
+                    print(f"Failed to notify {accepter_username} about accepted request")
+    except Exception as e:
+        print(f"Error in handle_accept_friend_request: {e}")
+    finally:
+        conn.close()
+
+async def handle_reject_friend_request(data, rejecter_username):
+    """Handle rejecting a friend request"""
+    from_id = data.get('from_id')
+    
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get rejecter's user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (rejecter_username,))
+        rejecter = c.fetchone()
+        
+        if not rejecter:
+            return
+        
+        # Update request status
+        c.execute('''
+            UPDATE friend_requests 
+            SET status = 'rejected' 
+            WHERE sender_id = ? AND receiver_id = ? AND status = 'pending'
+        ''', (from_id, rejecter[0]))
+        
+        conn.commit()
+        
+        # Get sender's username
+        c.execute('SELECT username FROM users WHERE id = ?', (from_id,))
+        sender = c.fetchone()
+        
+        if sender and sender[0] in active_connections:
+            try:
+                await active_connections[sender[0]].send(json.dumps({
+                    'type': 'friend_request_rejected',
+                    'by': rejecter_username,
+                    'user_id': rejecter[0],
+                    'timestamp': datetime.now().isoformat()
+                }))
+            except:
+                print(f"Failed to notify {sender[0]} about rejected request")
+    except Exception as e:
+        print(f"Error in handle_reject_friend_request: {e}")
+    finally:
+        conn.close()
+
+async def handle_cancel_friend_request(data, canceller_username):
+    """Handle cancelling a sent friend request"""
+    to_id = data.get('to_id')
+    
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get canceller's user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (canceller_username,))
+        canceller = c.fetchone()
+        
+        if not canceller:
+            return
+        
+        # Delete the pending request
+        c.execute('''
+            DELETE FROM friend_requests 
+            WHERE sender_id = ? AND receiver_id = ? AND status = 'pending'
+        ''', (canceller[0], to_id))
+        
+        conn.commit()
+        
+        # Get receiver's username
+        c.execute('SELECT username FROM users WHERE id = ?', (to_id,))
+        receiver = c.fetchone()
+        
+        if receiver and receiver[0] in active_connections:
+            try:
+                await active_connections[receiver[0]].send(json.dumps({
+                    'type': 'friend_request_cancelled',
+                    'by': canceller_username,
+                    'user_id': canceller[0],
+                    'timestamp': datetime.now().isoformat()
+                }))
+            except:
+                print(f"Failed to notify {receiver[0]} about cancelled request")
+    except Exception as e:
+        print(f"Error in handle_cancel_friend_request: {e}")
+    finally:
+        conn.close()
+
+async def handle_remove_friend(data, remover_username):
+    """Handle removing a friend"""
+    friend_id = data.get('friend_id')
+    
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get remover's user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (remover_username,))
+        remover = c.fetchone()
+        
+        if not remover:
+            return
+        
+        # Remove friendship (order doesn't matter due to CHECK constraint)
+        user1_id = min(remover[0], friend_id)
+        user2_id = max(remover[0], friend_id)
+        
+        c.execute('''
+            DELETE FROM friendships 
+            WHERE user1_id = ? AND user2_id = ?
+        ''', (user1_id, user2_id))
+        
+        conn.commit()
+        
+        # Get friend's username
+        c.execute('SELECT username FROM users WHERE id = ?', (friend_id,))
+        friend = c.fetchone()
+        
+        if friend and friend[0] in active_connections:
+            try:
+                await active_connections[friend[0]].send(json.dumps({
+                    'type': 'friend_removed',
+                    'by': remover_username,
+                    'user_id': remover[0],
+                    'timestamp': datetime.now().isoformat()
+                }))
+            except:
+                print(f"Failed to notify {friend[0]} about removed friendship")
+    except Exception as e:
+        print(f"Error in handle_remove_friend: {e}")
+    finally:
+        conn.close()
+
+async def handle_get_friends(websocket, username):
+    """Send list of friends to the requesting user"""
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        user = c.fetchone()
+        
+        if not user:
+            return
+        
+        user_id = user[0]
+        
+        # Get friends
+        c.execute('''
+            SELECT u.id, u.username, up.avatar_url
+            FROM friendships f
+            JOIN users u ON (f.user1_id = u.id OR f.user2_id = u.id) AND u.id != ?
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE f.user1_id = ? OR f.user2_id = ?
+        ''', (user_id, user_id, user_id))
+        
+        friends = c.fetchall()
+        
+        friends_list = []
+        for friend in friends:
+            friend_username = friend[1]
+            
+            # Check if friend is online from in-memory user_peers dictionary
+            is_online = False
+            last_seen = None
+            if friend_username in user_peers:
+                is_online = user_peers[friend_username].get('is_online', False)
+                last_seen = user_peers[friend_username].get('last_seen')
+            
+            friends_list.append({
+                'user_id': friend[0],
+                'username': friend_username,
+                'avatar': friend[2] or f"https://i.pravatar.cc/150?u={friend_username}",
+                'is_online': is_online,
+                'last_seen': last_seen
+            })
+        
+        await websocket.send(json.dumps({
+            'type': 'friends_list',
+            'friends': friends_list
+        }))
+    except Exception as e:
+        print(f"Error in handle_get_friends: {e}")
+    finally:
+        conn.close()
+
+async def handle_get_friend_requests(websocket, username):
+    """Send list of friend requests to the requesting user"""
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        user = c.fetchone()
+        
+        if not user:
+            return
+        
+        user_id = user[0]
+        
+        # Get pending friend requests
+        c.execute('''
+            SELECT fr.id, fr.sender_id, fr.receiver_id, fr.status, fr.created_at,
+                   u_sender.username as sender_username,
+                   u_receiver.username as receiver_username
+            FROM friend_requests fr
+            JOIN users u_sender ON fr.sender_id = u_sender.id
+            JOIN users u_receiver ON fr.receiver_id = u_receiver.id
+            WHERE (fr.sender_id = ? OR fr.receiver_id = ?) 
+              AND fr.status = 'pending'
+            ORDER BY fr.created_at DESC
+        ''', (user_id, user_id))
+        
+        requests = c.fetchall()
+        
+        requests_list = []
+        for req in requests:
+            is_incoming = req[2] == user_id  # receiver_id == current user
+            
+            requests_list.append({
+                'id': req[0],
+                'sender_id': req[1],
+                'sender_username': req[5],
+                'receiver_id': req[2],
+                'receiver_username': req[6],
+                'status': req[3],
+                'created_at': req[4],
+                'is_incoming': is_incoming,
+                'direction': 'incoming' if is_incoming else 'outgoing'
+            })
+        
+        await websocket.send(json.dumps({
+            'type': 'friend_requests_list',
+            'requests': requests_list
+        }))
+    except Exception as e:
+        print(f"Error in handle_get_friend_requests: {e}")
+    finally:
+        conn.close()
+
+async def handle_get_all_users(websocket, username):
+    """Send list of all users to the requesting user"""
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get current user's ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        current_user = c.fetchone()
+        
+        if not current_user:
+            return
+        
+        current_user_id = current_user[0]
+        
+        # Get all users except current user
+        c.execute('''
+            SELECT u.id, u.username, up.avatar_url,
+                   CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM friendships f 
+                            WHERE (f.user1_id = u.id AND f.user2_id = ?) 
+                               OR (f.user1_id = ? AND f.user2_id = u.id)
+                        ) THEN 'friend'
+                        WHEN EXISTS (
+                            SELECT 1 FROM friend_requests fr 
+                            WHERE fr.sender_id = ? AND fr.receiver_id = u.id AND fr.status = 'pending'
+                        ) THEN 'request_sent'
+                        WHEN EXISTS (
+                            SELECT 1 FROM friend_requests fr 
+                            WHERE fr.sender_id = u.id AND fr.receiver_id = ? AND fr.status = 'pending'
+                        ) THEN 'request_received'
+                        ELSE 'none'
+                   END as friend_status
+            FROM users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE u.id != ?
+            ORDER BY u.username
+        ''', (current_user_id, current_user_id, current_user_id, current_user_id, current_user_id))
+        
+        users = c.fetchall()
+        
+        users_list = []
+        for user in users:
+            user_id = user[0]
+            user_username = user[1]
+            
+            # Check if user is online from in-memory user_peers dictionary
+            is_online = False
+            last_seen = None
+            if user_username in user_peers:
+                is_online = user_peers[user_username].get('is_online', False)
+                last_seen = user_peers[user_username].get('last_seen')
+            
+            users_list.append({
+                'user_id': user_id,
+                'username': user_username,
+                'avatar': user[2] or f"https://i.pravatar.cc/150?u={user_username}",
+                'is_online': is_online,
+                'last_seen': last_seen,
+                'friend_status': user[3]
+            })
+        
+        await websocket.send(json.dumps({
+            'type': 'user_list',
+            'users': users_list
+        }))
+    except Exception as e:
+        print(f"Error in handle_get_all_users: {e}")
+    finally:
+        conn.close()
+async def send_peer_list(websocket):
+    peers_list = []
+    for username, info in user_peers.items():
+        peers_list.append({
+            'username': username,
+            'user_id': info['user_id'],
+            'is_online': info['is_online'],
+            'last_seen': info['last_seen']
+        })
+
+    await websocket.send(json.dumps({
+        'type': 'peer_list',
+        'peers': peers_list
+    }))
+
+
+async def broadcast_peer_list():
+    peers_list = []
+    for username, info in user_peers.items():
+        peers_list.append({
+            'username': username,
+            'user_id': info['user_id'],
+            'is_online': info['is_online'],
+            'last_seen': info['last_seen']
+        })
+
+    for ws in active_connections.values():
+        try:
+            await ws.send(json.dumps({
+                'type': 'peer_list',
+                'peers': peers_list
+            }))
+        except:
+            continue
+
+
+def start_websocket_server():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Bind websocket to all interfaces so other machines can connect
+    start_server = websockets.serve(websocket_handler, "0.0.0.0", 8766)
+
+    print("WebSocket server starting on ws://0.0.0.0:8766 (listening on all interfaces)")
+    loop.run_until_complete(start_server)
+    loop.run_forever()
+
+
+# REST API Routes
+@app.route('/')
+def index():
+    return jsonify({"message": "P2P Chat API"})
+
+
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data = request.json
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not all([username, email, password]):
+        return jsonify({"success": False, "message": "All fields are required"})
+
+    hashed_password = hash_password(password)
+
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        c.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+                  (username, email, hashed_password))
+
+        # Create default profile
+        user_id = c.lastrowid
+        c.execute('INSERT INTO user_profiles (user_id, full_name, bio) VALUES (?, ?, ?)',
+                  (user_id, username, f"Welcome to {username}'s profile!"))
+
+        # Create default settings
+        c.execute('INSERT INTO user_settings (user_id) VALUES (?)', (user_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"success": True, "message": "User created successfully"})
+
+    except sqlite3.IntegrityError:
+        return jsonify({"success": False, "message": "Username or email already exists"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    if not all([username, password]):
+        return jsonify({"success": False, "message": "All fields are required"})
+
+    hashed_password = hash_password(password)
+
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        c.execute('SELECT id, username, email FROM users WHERE username = ? AND password = ?',
+                  (username, hashed_password))
+        user = c.fetchone()
+        conn.close()
+
+        if user:
+            user_data = {
+                "id": user[0],
+                "username": user[1],
+                "email": user[2],
+                "user_id": user[0],  # For compatibility with stp.html
+                "profile_data": {
+                    "avatar": f"https://i.pravatar.cc/150?u={user[1]}"
+                }
+            }
+            # Set server-side session for this user so protected pages can use it
+            session['user_id'] = user[0]
+            session['username'] = user[1]
+            session.permanent = True
+            return jsonify({"success": True, "message": "Login successful", "user": user_data})
+        else:
+            return jsonify({"success": False, "message": "Invalid credentials"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/api/user/profile/<username>')
+def get_user_profile(username):
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        c.execute('''
+            SELECT u.id, u.username, u.email, up.full_name, up.bio, up.avatar_url, up.location, up.website, up.status
+            FROM users u 
+            LEFT JOIN user_profiles up ON u.id = up.user_id 
+            WHERE u.username = ?
+        ''', (username,))
+
+        profile = c.fetchone()
+        conn.close()
+
+        if profile:
+            profile_data = {
+                "id": profile[0],
+                "username": profile[1],
+                "email": profile[2],
+                "full_name": profile[3] or profile[1],
+                "bio": profile[4] or f"Welcome to {profile[1]}'s profile!",
+                "avatar_url": profile[5] or f"https://i.pravatar.cc/150?u={profile[1]}",
+                "location": profile[6] or "Unknown location",
+                "website": profile[7] or "No website",
+                "status": profile[8] or "Online"
+            }
+            return jsonify({"success": True, "profile": profile_data})
+        else:
+            return jsonify({"success": False, "message": "User not found"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+        
+@app.route('/api/friends/list')
+@login_required
+def get_friends():
+    """Get list of friends for current user"""
+    user_id = session.get('user_id')
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Get friends
+        c.execute('''
+            SELECT u.id, u.username, up.avatar_url
+            FROM friendships f
+            JOIN users u ON (f.user1_id = u.id OR f.user2_id = u.id) AND u.id != ?
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE f.user1_id = ? OR f.user2_id = ?
+        ''', (user_id, user_id, user_id))
+        
+        friends = c.fetchall()
+        
+        friends_list = []
+        for friend in friends:
+            # Check online status from in-memory dict (not available in REST API context)
+            friends_list.append({
+                'user_id': friend[0],
+                'username': friend[1],
+                'avatar': friend[2] or f"https://i.pravatar.cc/150?u={friend[1]}",
+                'is_online': False  # REST API doesn't have access to WebSocket user_peers
+            })
+        
+        conn.close()
+        return jsonify({"success": True, "friends": friends_list})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/friends/requests')
+@login_required
+def get_friend_requests():
+    """Get friend requests for current user"""
+    user_id = session.get('user_id')
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Get pending friend requests
+        c.execute('''
+            SELECT fr.id, fr.sender_id, fr.receiver_id, fr.status, fr.created_at,
+                   u_sender.username as sender_username,
+                   u_receiver.username as receiver_username
+            FROM friend_requests fr
+            JOIN users u_sender ON fr.sender_id = u_sender.id
+            JOIN users u_receiver ON fr.receiver_id = u_receiver.id
+            WHERE (fr.sender_id = ? OR fr.receiver_id = ?) 
+              AND fr.status = 'pending'
+            ORDER BY fr.created_at DESC
+        ''', (user_id, user_id))
+        
+        requests = c.fetchall()
+        
+        requests_list = []
+        for req in requests:
+            is_incoming = req[2] == user_id
+            
+            requests_list.append({
+                'id': req[0],
+                'sender_id': req[1],
+                'sender_username': req[5],
+                'receiver_id': req[2],
+                'receiver_username': req[6],
+                'status': req[3],
+                'created_at': req[4],
+                'is_incoming': is_incoming
+            })
+        
+        conn.close()
+        return jsonify({"success": True, "requests": requests_list})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/users/all')
+@login_required
+def get_all_users():
+    """Get all registered users"""
+    user_id = session.get('user_id')
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Get all users except current user
+        c.execute('''
+            SELECT u.id, u.username, up.avatar_url,
+                   CASE 
+                        WHEN EXISTS (
+                            SELECT 1 FROM friendships f 
+                            WHERE (f.user1_id = u.id AND f.user2_id = ?) 
+                               OR (f.user1_id = ? AND f.user2_id = u.id)
+                        ) THEN 'friend'
+                        WHEN EXISTS (
+                            SELECT 1 FROM friend_requests fr 
+                            WHERE fr.sender_id = ? AND fr.receiver_id = u.id AND fr.status = 'pending'
+                        ) THEN 'request_sent'
+                        WHEN EXISTS (
+                            SELECT 1 FROM friend_requests fr 
+                            WHERE fr.sender_id = u.id AND fr.receiver_id = ? AND fr.status = 'pending'
+                        ) THEN 'request_received'
+                        ELSE 'none'
+                   END as friend_status
+            FROM users u
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE u.id != ?
+            ORDER BY u.username
+        ''', (user_id, user_id, user_id, user_id, user_id))
+        
+        users = c.fetchall()
+        
+        users_list = []
+        for user in users:
+            users_list.append({
+                'user_id': user[0],
+                'username': user[1],
+                'avatar': user[2] or f"https://i.pravatar.cc/150?u={user[1]}",
+                'is_online': False,  # REST API doesn't have access to WebSocket user_peers
+                'friend_status': user[3]
+            })
+        
+        conn.close()
+        return jsonify({"success": True, "users": users_list})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/friends/request', methods=['POST'])
+@login_required
+def send_friend_request():
+    """Send a friend request"""
+    data = request.json
+    to_user_id = data.get('to_user_id')
+    from_user_id = session.get('user_id')
+    
+    if not to_user_id:
+        return jsonify({"success": False, "message": "Receiver ID required"})
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Check if request already exists
+        c.execute('''
+            SELECT id FROM friend_requests 
+            WHERE (sender_id = ? AND receiver_id = ?) 
+               OR (sender_id = ? AND receiver_id = ?)
+        ''', (from_user_id, to_user_id, to_user_id, from_user_id))
+        
+        if c.fetchone():
+            conn.close()
+            return jsonify({"success": False, "message": "Friend request already exists"})
+        
+        # Insert new friend request
+        c.execute('''
+            INSERT INTO friend_requests (sender_id, receiver_id, status)
+            VALUES (?, ?, 'pending')
+        ''', (from_user_id, to_user_id))
+        conn.commit()
+        
+        conn.close()
+        return jsonify({"success": True, "message": "Friend request sent"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/friends/accept', methods=['POST'])
+@login_required
+def accept_friend_request():
+    """Accept a friend request"""
+    data = request.json
+    request_id = data.get('request_id')
+    user_id = session.get('user_id')
+    
+    if not request_id:
+        return jsonify({"success": False, "message": "Request ID required"})
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Get the friend request
+        c.execute('''
+            SELECT sender_id, receiver_id FROM friend_requests 
+            WHERE id = ? AND receiver_id = ? AND status = 'pending'
+        ''', (request_id, user_id))
+        
+        request_data = c.fetchone()
+        if not request_data:
+            conn.close()
+            return jsonify({"success": False, "message": "Friend request not found"})
+        
+        sender_id, receiver_id = request_data
+        
+        # Update request status
+        c.execute('UPDATE friend_requests SET status = "accepted" WHERE id = ?', (request_id,))
+        
+        # Create friendship
+        user1_id = min(sender_id, receiver_id)
+        user2_id = max(sender_id, receiver_id)
+        
+        c.execute('''
+            INSERT OR IGNORE INTO friendships (user1_id, user2_id)
+            VALUES (?, ?)
+        ''', (user1_id, user2_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Friend request accepted"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/friends/reject', methods=['POST'])
+@login_required
+def reject_friend_request():
+    """Reject a friend request"""
+    data = request.json
+    request_id = data.get('request_id')
+    user_id = session.get('user_id')
+    
+    if not request_id:
+        return jsonify({"success": False, "message": "Request ID required"})
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Update request status
+        c.execute('''
+            UPDATE friend_requests 
+            SET status = 'rejected' 
+            WHERE id = ? AND receiver_id = ?
+        ''', (request_id, user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Friend request rejected"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    session.pop('username', None)
+    return redirect(url_for('index'))
+
+
+# Serve and protect HTML pages so only authenticated users may access them
+@app.route('/tp.html')
+@login_required
+def tp_page():
+    return send_from_directory(app.root_path, 'tp.html')
+
+
+@app.route('/profile.html')
+@login_required
+def profile_page():
+    return send_from_directory(app.root_path, 'profile.html')
+
+
+@app.route('/setting.html')
+@login_required
+def setting_page():
+    return send_from_directory(app.root_path, 'setting.html')
+
+
+@app.route('/api/user/update_profile', methods=['POST'])
+def update_profile():
+    data = request.json
+    username = data.get('username')
+
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        # Get user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        user = c.fetchone()
+
+        if not user:
+            return jsonify({"success": False, "message": "User not found"})
+
+        user_id = user[0]
+
+        # Update profile
+        c.execute('''
+            INSERT OR REPLACE INTO user_profiles 
+            (user_id, full_name, bio, avatar_url, location, website, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            user_id,
+            data.get('full_name'),
+            data.get('bio'),
+            data.get('avatar_url'),
+            data.get('location'),
+            data.get('website'),
+            data.get('status', 'Online')
+        ))
+
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Profile updated successfully"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/api/chat/messages/<int:user_id>')
+@login_required
+def get_user_messages(user_id):
+    try:
+        # Ensure the requester can only access their own messages or
+        # conversations that include them. Prevents users from fetching
+        # arbitrary third-party message history.
+        requester_id = session.get('user_id')
+        if not requester_id:
+            return jsonify({"success": False, "message": "Authentication required"}), 401
+
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        # If requester is asking for their own messages, return messages
+        # where they are sender or receiver. Otherwise, only return the
+        # conversation between requester and the target user.
+        if int(requester_id) == int(user_id):
+            c.execute('''
+                SELECT m.*, u.username as sender_username
+                FROM messages m
+                JOIN users u ON m.sender_id = u.id
+                WHERE m.receiver_id = ? OR m.sender_id = ?
+                ORDER BY m.timestamp DESC
+                LIMIT 50
+            ''', (user_id, user_id))
+        else:
+            # conversation between requester and user_id
+            c.execute('''
+                SELECT m.*, u.username as sender_username
+                FROM messages m
+                JOIN users u ON m.sender_id = u.id
+                WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
+                ORDER BY m.timestamp DESC
+                LIMIT 50
+            ''', (requester_id, user_id, user_id, requester_id))
+
+        messages = c.fetchall()
+        conn.close()
+
+        messages_list = []
+        for msg in messages:
+            messages_list.append({
+                'id': msg[0],
+                'sender_id': msg[1],
+                'receiver_id': msg[2],
+                'message': msg[4],
+                'message_type': msg[5],
+                'file_name': msg[6],
+                'file_size': msg[7],
+                'file_type': msg[8],
+                'timestamp': msg[9],
+                'sender_username': msg[10]
+            })
+
+        return jsonify({"success": True, "messages": messages_list})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/api/chat/peers')
+@login_required
+def get_online_peers():
+    """Get online friends only"""
+    user_id = session.get('user_id')
+    
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+        
+        # Get friends
+        c.execute('''
+            SELECT u.id, u.username, up.avatar_url
+            FROM friendships f
+            JOIN users u ON (f.user1_id = u.id OR f.user2_id = u.id) AND u.id != ?
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE (f.user1_id = ? OR f.user2_id = ?)
+            ORDER BY u.username
+        ''', (user_id, user_id, user_id))
+        
+        friends = c.fetchall()
+        
+        peers_list = []
+        for friend in friends:
+            peers_list.append({
+                'user_id': friend[0],
+                'username': friend[1],
+                'avatar': friend[2] or f"https://i.pravatar.cc/150?u={friend[1]}",
+                'is_online': False,  # REST API doesn't have access to WebSocket user_peers
+                'last_seen': datetime.now().isoformat()
+            })
+        
+        conn.close()
+        return jsonify({"success": True, "peers": peers_list})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+@app.route('/api/settings/update', methods=['POST'])
+def update_settings():
+    data = request.json
+    user_id = data.get('user_id')
+
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        c.execute('''
+            INSERT OR REPLACE INTO user_settings 
+            (user_id, theme, notifications_enabled, privacy_level) 
+            VALUES (?, ?, ?, ?)
+        ''', (
+            user_id,
+            data.get('theme', 'light'),
+            data.get('notifications_enabled', True),
+            data.get('privacy_level', 'everyone')
+        ))
+
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Settings updated successfully"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@app.route('/api/settings/<int:user_id>')
+def get_settings(user_id):
+    try:
+        conn = sqlite3.connect('p2p_chat.db')
+        c = conn.cursor()
+
+        c.execute('SELECT * FROM user_settings WHERE user_id = ?', (user_id,))
+        settings = c.fetchone()
+
+        if settings:
+            settings_data = {
+                'theme': settings[2],
+                'notifications_enabled': bool(settings[3]),
+                'privacy_level': settings[4]
+            }
+            return jsonify({"success": True, "settings": settings_data})
+        else:
+            # Return default settings
+            return jsonify({"success": True, "settings": {
+                'theme': 'light',
+                'notifications_enabled': True,
+                'privacy_level': 'everyone'
+            }})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+
+async def handle_group_message(data, websocket, sender_username):
+    group_id = data.get('group_id')
+    message_text = data.get('message')
+    client_id = data.get('client_id')
+    
+    if not group_id or not message_text:
+        return
+
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    # Get sender ID
+    c.execute('SELECT id FROM users WHERE username = ?', (sender_username,))
+    sender = c.fetchone()
+    
+    if not sender:
+        conn.close()
+        return
+
+    # Verify sender is in group
+    c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', (group_id, sender[0]))
+    is_member = c.fetchone()
+    
+    if not is_member:
+        conn.close()
+        return
+
+    # Save message to database
+    c.execute('''
+        INSERT INTO messages (sender_id, group_id, message, message_type)
+        VALUES (?, ?, ?, ?)
+    ''', (sender[0], group_id, message_text, 'text'))
+    conn.commit()
+    message_id = c.lastrowid
+    
+    # Get all group members to broadcast to
+    c.execute('''
+        SELECT u.username 
+        FROM group_members gm
+        JOIN users u ON gm.user_id = u.id
+        WHERE gm.group_id = ?
+    ''', (group_id,))
+    members = c.fetchall()
+    
+    conn.close()
+
+    payload = {
+        'type': 'group_message',
+        'id': message_id,
+        'client_id': client_id,
+        'from': sender_username,
+        'from_id': sender[0],
+        'group_id': group_id,
+        'message': message_text,
+        'timestamp': datetime.now().isoformat()
+    }
+
+    # Broadcast to all members
+    for member in members:
+        member_username = member[0]
+        if member_username != sender_username and member_username in active_connections:
+            try:
+                await active_connections[member_username].send(json.dumps(payload))
+            except:
+                pass
+
+    # Send ack to sender
+    try:
+        ack = {
+            'type': 'delivery_ack', 
+            'client_id': client_id, 
+            'message_id': message_id, 
+            'to_id': group_id 
+        }
+        await websocket.send(json.dumps(ack))
+    except Exception:
+        pass
+
+
+
+async def handle_get_group_messages(data, websocket, username):
+    """Send group message history to the requesting user"""
+    group_id = data.get('group_id')
+    if not group_id:
+        return
+
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        user_row = c.fetchone()
+        if not user_row:
+            return
+        user_id = user_row[0]
+
+        # Verify membership
+        c.execute('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?', (group_id, user_id))
+        if not c.fetchone():
+            return
+
+        # Fetch messages
+        c.execute('''
+            SELECT m.id, m.sender_id, m.message, m.timestamp, u.username
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.group_id = ?
+            ORDER BY m.timestamp ASC
+            LIMIT 50
+        ''', (group_id,))
+        
+        messages = []
+        for row in c.fetchall():
+            messages.append({
+                'id': row[0],
+                'sender_id': row[1],
+                'message': row[2],
+                'timestamp': row[3],
+                'sender_username': row[4],
+                'group_id': group_id,
+                'is_outgoing': (row[4] == username)
+            })
+            
+        await websocket.send(json.dumps({
+            'type': 'group_history',
+            'group_id': group_id,
+            'messages': messages
+        }))
+
+    except Exception as e:
+        print(f"Error fetching group messages: {e}")
+    finally:
+        conn.close()
+
+
+
+async def handle_get_groups(websocket, username):
+    """Send list of groups the user belongs to"""
+    conn = sqlite3.connect('p2p_chat.db')
+    c = conn.cursor()
+    
+    try:
+        # Get user ID
+        c.execute('SELECT id FROM users WHERE username = ?', (username,))
+        user_row = c.fetchone()
+        if not user_row:
+            return
+        user_id = user_row[0]
+
+        # Fetch groups
+        c.execute('''
+            SELECT g.id, g.name
+            FROM groups g
+            JOIN group_members gm ON g.id = gm.group_id
+            WHERE gm.user_id = ?
+        ''', (user_id,))
+        
+        groups_list = []
+        for row in c.fetchall():
+            g_id = row[0]
+            g_name = row[1]
+            # Fetch members for this group
+            c.execute('''
+                SELECT u.username 
+                FROM users u
+                JOIN group_members gm ON u.id = gm.user_id
+                WHERE gm.group_id = ?
+            ''', (g_id,))
+            members = [r[0] for r in c.fetchall()]
+            
+            groups_list.append({
+                'id': g_id,
+                'name': g_name,
+                'members': members
+            })
+            
+        await websocket.send(json.dumps({
+            'type': 'group_list',
+            'groups': groups_list
+        }))
+
+    except Exception as e:
+        print(f"Error fetching groups: {e}")
+    finally:
+        conn.close()
+
+
+if __name__ == '__main__':
+    init_db()
+
+    # Start WebSocket server in a separate thread
+    ws_thread = threading.Thread(target=start_websocket_server, daemon=True)
+    ws_thread.start()
+  
+    print("Starting Flask server on http://localhost:5000 (listening on all interfaces)")
+    print("WebSocket server on ws://localhost:8766")
+    app.run(host='0.0.0.0', debug=True, port=5000, use_reloader=False)
